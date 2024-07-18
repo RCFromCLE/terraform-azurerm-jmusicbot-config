@@ -95,6 +95,12 @@ resource "tls_private_key" "this" {
   rsa_bits  = 4096
 }
 
+locals {
+  pem_public_key = tls_private_key.this.public_key_pem
+  ssh_public_key = replace(trimspace(local.pem_public_key), "/^(-----(BEGIN|END) PUBLIC KEY-----|\n)//gm", "")
+  openssh_public_key = "ssh-rsa ${local.ssh_public_key}"
+}
+
 resource "azurerm_key_vault_secret" "private_key" {
   name         = "ssh-private-key"
   value        = tls_private_key.this.private_key_pem
@@ -103,7 +109,7 @@ resource "azurerm_key_vault_secret" "private_key" {
 
 resource "azurerm_key_vault_secret" "public_key" {
   name         = "ssh-public-key"
-  value        = tls_private_key.this.public_key_pem
+  value        = local.openssh_public_key
   key_vault_id = azurerm_key_vault.jdiscord_kv.id
 }
 
@@ -123,4 +129,16 @@ resource "azurerm_key_vault_secret" "discord_bot_prefix" {
   name         = "discord-bot-prefix"
   value        = var.discord_bot_prefix
   key_vault_id = azurerm_key_vault.jdiscord_kv.id
+}
+
+output "key_vault_name" {
+  value = azurerm_key_vault.jdiscord_kv.name
+}
+
+output "key_vault_id" {
+  value = azurerm_key_vault.jdiscord_kv.id
+}
+
+output "public_key_secret_name" {
+  value = azurerm_key_vault_secret.public_key.name
 }
