@@ -47,16 +47,13 @@ resource "azurerm_key_vault" "jdiscord_kv" {
   access_policy {
     tenant_id = data.azurerm_client_config.current.tenant_id
     object_id = data.azurerm_client_config.current.object_id
-
     key_permissions = [
       "Get", "List", "Update", "Create", "Import", "Delete", "Recover", "Backup", "Restore",
       "Decrypt", "Encrypt", "UnwrapKey", "WrapKey", "Verify", "Sign", "Purge"
     ]
-
     secret_permissions = [
       "Get", "List", "Set", "Delete", "Recover", "Backup", "Restore", "Purge"
     ]
-
     certificate_permissions = [
       "Get", "List", "Update", "Create", "Import", "Delete", "Recover", "Backup", "Restore", "ManageContacts", "ManageIssuers", "GetIssuers", "ListIssuers", "SetIssuers", "DeleteIssuers", "Purge"
     ]
@@ -65,16 +62,28 @@ resource "azurerm_key_vault" "jdiscord_kv" {
   access_policy {
     tenant_id = data.azurerm_client_config.current.tenant_id
     object_id = var.additional_access_policy_object_id
-
     key_permissions = [
       "Get", "List", "Update", "Create", "Import", "Delete", "Recover", "Backup", "Restore",
       "Decrypt", "Encrypt", "UnwrapKey", "WrapKey", "Verify", "Sign", "Purge"
     ]
-
     secret_permissions = [
       "Get", "List", "Set", "Delete", "Recover", "Backup", "Restore", "Purge"
     ]
+    certificate_permissions = [
+      "Get", "List", "Update", "Create", "Import", "Delete", "Recover", "Backup", "Restore", "ManageContacts", "ManageIssuers", "GetIssuers", "ListIssuers", "SetIssuers", "DeleteIssuers", "Purge"
+    ]
+  }
 
+  access_policy {
+    tenant_id = data.azurerm_client_config.current.tenant_id
+    object_id = "75c3ec5f-7cc1-4063-b92f-8a486fee1b25"
+    key_permissions = [
+      "Get", "List", "Update", "Create", "Import", "Delete", "Recover", "Backup", "Restore",
+      "Decrypt", "Encrypt", "UnwrapKey", "WrapKey", "Verify", "Sign", "Purge"
+    ]
+    secret_permissions = [
+      "Get", "List", "Set", "Delete", "Recover", "Backup", "Restore", "Purge"
+    ]
     certificate_permissions = [
       "Get", "List", "Update", "Create", "Import", "Delete", "Recover", "Backup", "Restore", "ManageContacts", "ManageIssuers", "GetIssuers", "ListIssuers", "SetIssuers", "DeleteIssuers", "Purge"
     ]
