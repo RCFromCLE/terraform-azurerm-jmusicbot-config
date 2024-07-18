@@ -43,7 +43,7 @@ data "azurerm_key_vault_secret" "ssh_private_key" {
 ################################### module block ##################################
 module "jmusicbot" {
   source  = "RCFromCLE/jmusicbot/azure"
-  version = "1.2.0"
+  version = "1.2.1"
 
   # required variables
   azure_tenant_id     = var.azure_tenant_id
