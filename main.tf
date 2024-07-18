@@ -23,23 +23,6 @@ provider "azurerm" {
   features {}
   subscription_id = var.sub
 }
-
-################################### data blocks ###################################
-data "azurerm_key_vault" "jdiscord_kv" {
-  name                = "jdiscord-kv"
-  resource_group_name = var.kv_resource_group_name
-}
-
-data "azurerm_key_vault_secret" "ssh_public_key" {
-  name         = "ssh-public-key"
-  key_vault_id = data.azurerm_key_vault.jdiscord_kv.id
-}
-
-data "azurerm_key_vault_secret" "ssh_private_key" {
-  name         = "ssh-private-key"
-  key_vault_id = data.azurerm_key_vault.jdiscord_kv.id
-}
-
 ################################### module block ##################################
 module "jmusicbot" {
   source  = "RCFromCLE/jmusicbot/azure"
