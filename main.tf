@@ -26,7 +26,7 @@ provider "azurerm" {
 ################################### module block ##################################
 module "jmusicbot" {
   source  = "RCFromCLE/jmusicbot/azure"
-  version = "1.2.3"
+  version = "1.2.4"
 
   # required variables
   azure_tenant_id     = var.azure_tenant_id
@@ -49,8 +49,6 @@ module "jmusicbot" {
   nsg                = var.nsg
   vm_name            = var.vm_name
   vm_size            = var.vm_size
-  ssh_public_key     = data.azurerm_key_vault_secret.ssh_public_key.value
-  ssh_private_key    = data.azurerm_key_vault_secret.ssh_private_key.value
   vm_image_publisher = var.vm_image_publisher
   vm_image_offer     = var.vm_image_offer
   vm_image_sku       = var.vm_image_sku
