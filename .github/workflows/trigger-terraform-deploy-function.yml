@@ -158,11 +158,18 @@ jobs:
               exit 1
             elif [ "$STATUS" = "planned_and_finished" ]; then
               echo "Plan finished. Initiating apply..."
-              curl \
+              RESPONSE=$(curl -s -w "\n%{http_code}" \
                 --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
                 --header "Content-Type: application/vnd.api+json" \
                 --request POST \
-                https://app.terraform.io/api/v2/runs/${{ steps.trigger_apply.outputs.run_id }}/actions/apply
+                https://app.terraform.io/api/v2/runs/${{ steps.trigger_apply.outputs.run_id }}/actions/apply)
+              
+              HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
+              if [ "$HTTP_STATUS" -ne 200 ]; then
+                echo "ERROR: Failed to apply the plan. HTTP status: $HTTP_STATUS"
+                echo "Error message: $(echo "$RESPONSE" | jq -r '.errors[0].title')"
+                exit 1
+              fi
             fi
             
             sleep 30
