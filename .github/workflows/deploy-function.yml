@@ -3,21 +3,24 @@ name: Deploy Node.js project to Azure Function App
 on:
   push:
     paths:
-      - 'function/jdiscord-function/**'
+      - 'function/**'
   workflow_dispatch:
 
 env:
-  AZURE_FUNCTIONAPP_NAME: ${{ secrets.AZURE_FUNCTION_APP_NAME }}  # Azure Function App name
-  AZURE_FUNCTIONAPP_PACKAGE_PATH: 'function/jdiscord-function'   # Path to your function app project
+  AZURE_FUNCTIONAPP_NAME: ${{ secrets.AZURE_FUNCTIONAPP_NAME }}  # Azure Function App name
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: 'function'                    # Path to your function app project
   NODE_VERSION: '16.x'                                           # Node.js version to use
 
 jobs:
   build-and-deploy:
     runs-on: windows-latest
+    environment: dev
 
     steps:
     - name: 'Checkout GitHub Action'
       uses: actions/checkout@v3
+      with:
+        repository: 'RCFromCLE/terraform-azurerm-jmusicbot'    # Specify the repository to checkout
 
     - name: Setup Node ${{ env.NODE_VERSION }} Environment
       uses: actions/setup-node@v3
@@ -37,6 +40,6 @@ jobs:
       uses: Azure/functions-action@v1
       id: fa
       with:
-        app-name: ${{ secrets.AZURE_FUNCTION_APP_NAME }}
+        app-name: ${{ secrets.AZURE_FUNCTIONAPP_NAME }}
         package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
         publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
