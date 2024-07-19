@@ -1,4 +1,4 @@
-name: Deploy JDiscordBot Function
+name: Deploy Node.js project to Azure Function App
 
 on:
   push:
@@ -13,6 +13,7 @@ env:
 jobs:
   build-and-deploy:
     runs-on: windows-latest
+    environment: dev
 
     steps:
     - name: 'Checkout GitHub Action'
