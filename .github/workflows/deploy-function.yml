@@ -1,4 +1,4 @@
-name: Deploy Azure Function
+name: Deploy jdiscord-function
 
 on:
   push:
@@ -15,8 +15,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout Repository
+        uses: actions/checkout@v2
         with:
+          repository: RCFromCLE/terraform-azurerm-jmusicbot
           path: function/jdiscord-function
 
       - name: 'Deploy to Azure Functions'
