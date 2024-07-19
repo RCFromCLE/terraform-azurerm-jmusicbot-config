@@ -1,0 +1,19 @@
+{
+    "name": "jdiscord-function",
+    "version": "1.0.0",
+    "description": "A function to manage Discord bot VM based on voice channel activity.",
+    "main": "index.js",
+    "scripts": {
+        "start": "func start",
+        "test": "echo \"No tests yet\""
+    },
+    "dependencies": {
+        "@azure/arm-compute": "^17.0.0",
+        "@azure/identity": "^2.0.1",
+        "axios": "^1.6.7",
+        "discord.js": "^13.17.1",
+        "dot": "^1.1.3",
+        "dotenv": "^16.4.5",
+        "env": "^0.0.2"
+    }
+}
