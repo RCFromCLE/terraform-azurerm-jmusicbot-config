@@ -12,7 +12,7 @@ env:
   AZURE_VM_NAME: ${{ secrets.AZURE_VM_NAME }}
 
 jobs:
-  trigger_and_monitor_terraform:
+  trigger-and-monitor-terraform:
     runs-on: ubuntu-latest
     outputs:
       apply_success: ${{ steps.check_apply.outputs.success }}
@@ -69,6 +69,7 @@ jobs:
           echo "::set-output name=id::$WORKSPACE_ID"
 
       - name: Taint Resource
+        id: taint
         run: |
           echo "Tainting resource: module.jmusicbot.azurerm_virtual_machine_extension.run_jdiscordbot"
           RESPONSE=$(curl -s -w "\n%{http_code}" \
@@ -106,25 +107,12 @@ jobs:
             echo "Resource taint initiated successfully."
             RUN_ID=$(echo "$BODY" | jq -r '.data.id')
             echo "Taint run ID: $RUN_ID"
+            echo "::set-output name=run_id::$RUN_ID"
           else
             echo "Failed to initiate resource taint. HTTP status: $HTTP_STATUS"
             echo "Error message: $(echo "$BODY" | jq -r '.errors[0].title')"
             exit 1
           fi
-
-      - name: Trigger Terraform Apply
-        id: trigger_apply
-        run: |
-          echo "Triggering Terraform Apply..."
-          RESPONSE=$(curl \
-            --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
-            --header "Content-Type: application/vnd.api+json" \
-            --request POST \
-            --data '{"data": {"attributes": {"message": "Triggered by GitHub Actions - Update JMusicBot"}, "type":"runs", "relationships": {"workspace": {"data": {"type": "workspaces", "id": "${{ steps.workspace.outputs.id }}"}}}}}' \
-            https://app.terraform.io/api/v2/runs)
-          RUN_ID=$(echo $RESPONSE | jq -r '.data.id')
-          echo "Terraform Run ID: $RUN_ID"
-          echo "::set-output name=run_id::$RUN_ID"
 
       - name: Check Terraform Apply Status
         id: check_apply
@@ -143,7 +131,7 @@ jobs:
             STATUS=$(curl \
               --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
               --header "Content-Type: application/vnd.api+json" \
-              https://app.terraform.io/api/v2/runs/${{ steps.trigger_apply.outputs.run_id }} \
+              https://app.terraform.io/api/v2/runs/${{ steps.taint.outputs.run_id }} \
               | jq -r '.data.attributes.status')
             
             echo "Current status: $STATUS"
@@ -158,26 +146,19 @@ jobs:
               exit 1
             elif [ "$STATUS" = "planned_and_finished" ]; then
               echo "Plan finished. Initiating apply..."
-              RESPONSE=$(curl -s -w "\n%{http_code}" \
+              curl \
                 --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
                 --header "Content-Type: application/vnd.api+json" \
                 --request POST \
-                https://app.terraform.io/api/v2/runs/${{ steps.trigger_apply.outputs.run_id }}/actions/apply)
-              
-              HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
-              if [ "$HTTP_STATUS" -ne 200 ]; then
-                echo "ERROR: Failed to apply the plan. HTTP status: $HTTP_STATUS"
-                echo "Error message: $(echo "$RESPONSE" | jq -r '.errors[0].title')"
-                exit 1
-              fi
+                https://app.terraform.io/api/v2/runs/${{ steps.taint.outputs.run_id }}/actions/apply
             fi
             
             sleep 30
           done
 
-  deploy_function:
-    needs: trigger_and_monitor_terraform
-    if: needs.trigger_and_monitor_terraform.outputs.apply_success == 'true'
+  deploy-function:
+    needs: trigger-and-monitor-terraform
+    if: needs.trigger-and-monitor-terraform.outputs.apply_success == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
