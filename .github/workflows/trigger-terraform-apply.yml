@@ -14,34 +14,26 @@ env:
 jobs:
   trigger-and-monitor-terraform:
     runs-on: ubuntu-latest
-    outputs:
-      apply_success: ${{ steps.check_apply.outputs.success }}
     steps:
       - name: Azure Login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Check VM Power State
+      - name: Check Initial VM Power State
+        id: check_initial_state
         run: |
-          echo "Checking VM power state..."
-          if [ -z "$AZURE_RESOURCE_GROUP" ] || [ -z "$AZURE_VM_NAME" ]; then
-            echo "ERROR: AZURE_RESOURCE_GROUP or AZURE_VM_NAME is not set."
-            exit 1
-          fi
+          echo "Checking initial VM power state..."
           VM_STATE=$(az vm get-instance-view \
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --name "$AZURE_VM_NAME" \
             --query instanceView.statuses[1].displayStatus \
             -o tsv)
-          if [ $? -ne 0 ]; then
-            echo "ERROR: Failed to get VM state. Please check your resource group and VM name."
-            exit 1
-          fi
-          echo "VM Power State: $VM_STATE"
+          echo "Initial VM Power State: $VM_STATE"
+          echo "::set-output name=initial_state::$VM_STATE"
+          
           if [ "$VM_STATE" != "VM running" ]; then
-            echo "Warning: VM is not in 'running' state. Current state: $VM_STATE"
-            echo "Attempting to start the VM..."
+            echo "Starting VM..."
             az vm start --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_VM_NAME"
             echo "Waiting for VM to be in running state..."
             while [ "$VM_STATE" != "VM running" ]; do
@@ -68,10 +60,10 @@ jobs:
           echo "Workspace ID: $WORKSPACE_ID"
           echo "::set-output name=id::$WORKSPACE_ID"
 
-      - name: Taint Resource
-        id: taint
+      - name: Trigger Terraform Apply
+        id: apply
         run: |
-          echo "Tainting resource: module.jmusicbot.azurerm_virtual_machine_extension.run_jdiscordbot"
+          echo "Triggering Terraform Apply..."
           RESPONSE=$(curl -s -w "\n%{http_code}" \
             --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
             --header "Content-Type: application/vnd.api+json" \
@@ -81,7 +73,8 @@ jobs:
                 "type": "runs",
                 "attributes": {
                   "is-destroy": false,
-                  "message": "Taint module.jmusicbot.azurerm_virtual_machine_extension.run_jdiscordbot",
+                  "message": "Triggered by GitHub Actions",
+                  "auto-apply": true,
                   "refresh": true,
                   "replace-addrs": ["module.jmusicbot.azurerm_virtual_machine_extension.run_jdiscordbot"]
                 },
@@ -100,58 +93,42 @@ jobs:
           HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
           BODY=$(echo "$RESPONSE" | sed '$d')
           
-          echo "Response body: $BODY"
-          echo "HTTP status: $HTTP_STATUS"
-          
           if [ "$HTTP_STATUS" -eq 201 ]; then
-            echo "Resource taint initiated successfully."
+            echo "Terraform apply triggered successfully."
             RUN_ID=$(echo "$BODY" | jq -r '.data.id')
-            echo "Taint run ID: $RUN_ID"
             echo "::set-output name=run_id::$RUN_ID"
           else
-            echo "Failed to initiate resource taint. HTTP status: $HTTP_STATUS"
+            echo "Failed to trigger Terraform apply. HTTP status: $HTTP_STATUS"
             echo "Error message: $(echo "$BODY" | jq -r '.errors[0].title')"
             exit 1
           fi
 
-      - name: Check Terraform Apply Status
-        id: check_apply
+      - name: Monitor Terraform Apply Status
         run: |
           echo "Monitoring Terraform Apply status..."
-          start_time=$(date +%s)
-          timeout=600  # 10 minutes timeout
           while true; do
-            current_time=$(date +%s)
-            if [ $((current_time - start_time)) -ge $timeout ]; then
-              echo "ERROR: Timeout reached. Terraform apply did not complete in 10 minutes."
-              echo "::set-output name=success::false"
-              exit 1
-            fi
-
             STATUS=$(curl \
               --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
               --header "Content-Type: application/vnd.api+json" \
-              https://app.terraform.io/api/v2/runs/${{ steps.taint.outputs.run_id }} \
+              https://app.terraform.io/api/v2/runs/${{ steps.apply.outputs.run_id }} \
               | jq -r '.data.attributes.status')
             
             echo "Current status: $STATUS"
             
             if [ "$STATUS" = "applied" ]; then
               echo "SUCCESS: Terraform apply completed successfully."
-              echo "::set-output name=success::true"
               break
             elif [ "$STATUS" = "errored" ] || [ "$STATUS" = "canceled" ] || [ "$STATUS" = "discarded" ]; then
               echo "ERROR: Terraform apply failed with status: $STATUS"
-              echo "::set-output name=success::false"
               exit 1
-            elif [ "$STATUS" = "planned_and_finished" ]; then
-              echo "Plan finished. Initiating apply..."
-              curl \
-                --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
-                --header "Content-Type: application/vnd.api+json" \
-                --request POST \
-                https://app.terraform.io/api/v2/runs/${{ steps.taint.outputs.run_id }}/actions/apply
             fi
             
             sleep 30
           done
+
+      - name: Restore Initial VM Power State
+        if: steps.check_initial_state.outputs.initial_state != 'VM running'
+        run: |
+          echo "Restoring VM to initial power state (powering off)..."
+          az vm deallocate --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_VM_NAME"
+          echo "VM powered off."
