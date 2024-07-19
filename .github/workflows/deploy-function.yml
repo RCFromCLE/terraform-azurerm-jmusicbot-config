@@ -1,4 +1,4 @@
-name: Deploy Node.js project to Azure Function App
+name: Deploy JDiscordBot Function
 
 on:
   push:
@@ -7,20 +7,19 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_FUNCTIONAPP_NAME: ${{ secrets.AZURE_FUNCTIONAPP_NAME }}  # Azure Function App name
-  AZURE_FUNCTIONAPP_PACKAGE_PATH: 'function'                    # Path to your function app project
-  NODE_VERSION: '16.x'                                           # Node.js version to use
+  AZURE_FUNCTION_APP_NAME: ${{ secrets.AZURE_FUNCTION_APP_NAME }}  # Azure Function App name
+  NODE_VERSION: '16.x'                                              # Node.js version to use
 
 jobs:
   build-and-deploy:
     runs-on: windows-latest
-    environment: dev
 
     steps:
     - name: 'Checkout GitHub Action'
       uses: actions/checkout@v3
       with:
         repository: 'RCFromCLE/terraform-azurerm-jmusicbot'    # Specify the repository to checkout
+        path: 'terraform-azurerm-jmusicbot'                    # Specify the path where the repository is checked out
 
     - name: Setup Node ${{ env.NODE_VERSION }} Environment
       uses: actions/setup-node@v3
@@ -30,7 +29,7 @@ jobs:
     - name: 'Resolve Project Dependencies Using Npm'
       shell: pwsh
       run: |
-        pushd '${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
+        pushd 'terraform-azurerm-jmusicbot/function'
         npm install
         npm run build --if-present
         npm run test --if-present
@@ -40,6 +39,6 @@ jobs:
       uses: Azure/functions-action@v1
       id: fa
       with:
-        app-name: ${{ secrets.AZURE_FUNCTIONAPP_NAME }}
-        package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+        app-name: ${{ secrets.AZURE_FUNCTION_APP_NAME }}
+        package: 'terraform-azurerm-jmusicbot/function'
         publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
