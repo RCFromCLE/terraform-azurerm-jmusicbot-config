@@ -1,4 +1,4 @@
-name: Deploy Node.js project to Azure Function App
+name: Deploy JDiscord Function App
 
 on:
   push:
@@ -29,16 +29,15 @@ jobs:
     - name: 'Resolve Project Dependencies Using Npm'
       shell: pwsh
       run: |
-        pushd 'function'
+        cd 'terraform-azurerm-jmusicbot/function'
         npm install
         npm run build --if-present
         npm run test --if-present
-        popd
 
     - name: 'Run Azure Functions Action'
       uses: Azure/functions-action@v1
       id: fa
       with:
         app-name: ${{ secrets.AZURE_FUNCTION_APP_NAME }}
-        package: 'function'
+        package: 'terraform-azurerm-jmusicbot/function'
         publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
