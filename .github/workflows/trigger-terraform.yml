@@ -1,17 +1,19 @@
-name: Trigger Terraform and Taint Resource
+name: Trigger Terraform and Deploy
 
 on:
   repository_dispatch:
     types: [module-updated]
-  workflow_dispatch:  # Allow manual triggers
+  workflow_dispatch:
 
 env:
-  TF_CLOUD_ORGANIZATION: "your-org-name"
-  TF_WORKSPACE_NAME: "your-workspace-name"
+  TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
+  TF_WORKSPACE_NAME: ${{ secrets.TF_WORKSPACE_NAME }}
 
 jobs:
-  trigger-terraform:
+  trigger-and-monitor-terraform:
     runs-on: ubuntu-latest
+    outputs:
+      apply_success: ${{ steps.check_apply.outputs.success }}
     steps:
       - name: Get Workspace ID
         id: workspace
@@ -23,20 +25,48 @@ jobs:
             | jq -r '.data.id')
           echo "::set-output name=id::$WORKSPACE_ID"
 
-      - name: Taint VM Extension
-        run: |
-          curl \
-            --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
-            --header "Content-Type: application/vnd.api+json" \
-            --request POST \
-            --data '{"data": {"type": "runs", "attributes": {"message": "Taint VM extension", "is-destroy": false, "variables": {"TF_CLI_ARGS": "-replace=azurerm_virtual_machine_extension.run_jdiscordbot"}}, "relationships": {"workspace": {"data": {"type": "workspaces", "id": "${{ steps.workspace.outputs.id }}"}}}}}' \
-            https://app.terraform.io/api/v2/runs
-
       - name: Trigger Terraform Apply
+        id: trigger_apply
         run: |
-          curl \
+          RESPONSE=$(curl \
             --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
             --header "Content-Type: application/vnd.api+json" \
             --request POST \
-            --data '{"data": {"type": "runs", "attributes": {"message": "Triggered by GitHub Actions - Update JMusicBot"}, "relationships": {"workspace": {"data": {"type": "workspaces", "id": "${{ steps.workspace.outputs.id }}"}}}}}' \
-            https://app.terraform.io/api/v2/runs
+            --data '{"data": {"attributes": {"message": "Triggered by GitHub Actions - Update JMusicBot"}, "type":"runs", "relationships": {"workspace": {"data": {"type": "workspaces", "id": "${{ steps.workspace.outputs.id }}"}}}}}' \
+            https://app.terraform.io/api/v2/runs)
+          RUN_ID=$(echo $RESPONSE | jq -r '.data.id')
+          echo "::set-output name=run_id::$RUN_ID"
+
+      - name: Check Terraform Apply Status
+        id: check_apply
+        run: |
+          while true; do
+            STATUS=$(curl \
+              --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
+              --header "Content-Type: application/vnd.api+json" \
+              https://app.terraform.io/api/v2/runs/${{ steps.trigger_apply.outputs.run_id }} \
+              | jq -r '.data.attributes.status')
+            
+            if [ "$STATUS" = "applied" ]; then
+              echo "::set-output name=success::true"
+              break
+            elif [ "$STATUS" = "errored" ] || [ "$STATUS" = "canceled" ] || [ "$STATUS" = "discarded" ]; then
+              echo "::set-output name=success::false"
+              break
+            fi
+            
+            echo "Terraform apply still in progress. Current status: $STATUS"
+            sleep 30
+          done
+
+  deploy-function:
+    needs: trigger-and-monitor-terraform
+    if: needs.trigger-and-monitor-terraform.outputs.apply_success == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: 'Deploy to Azure Functions'
+        uses: Azure/functions-action@v1
+        with: 
+          app-name: ${{ secrets.AZURE_FUNCTION_APP_NAME }}
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
