@@ -1,0 +1,127 @@
+name: Trigger Terraform and Deploy Function
+
+on:
+  repository_dispatch:
+    types: [module-updated]
+  workflow_dispatch:
+
+env:
+  TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
+  TF_WORKSPACE_NAME: ${{ secrets.TF_WORKSPACE_NAME }}
+
+jobs:
+  trigger-and-monitor-terraform:
+    runs-on: ubuntu-latest
+    outputs:
+      apply_success: ${{ steps.check_apply.outputs.success }}
+    steps:
+      - name: Get Workspace ID
+        id: workspace
+        run: |
+          echo "Getting Terraform Cloud Workspace ID..."
+          WORKSPACE_ID=$(curl \
+            --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
+            --header "Content-Type: application/vnd.api+json" \
+            https://app.terraform.io/api/v2/organizations/${TF_CLOUD_ORGANIZATION}/workspaces/${TF_WORKSPACE_NAME} \
+            | jq -r '.data.id')
+          echo "Workspace ID: $WORKSPACE_ID"
+          echo "::set-output name=id::$WORKSPACE_ID"
+
+      - name: Taint Resource
+        run: |
+          echo "Tainting resource: azurerm_virtual_machine_extension.run_jdiscordbot"
+          RESPONSE=$(curl \
+            --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
+            --header "Content-Type: application/vnd.api+json" \
+            --request POST \
+            --data '{"data": {"type":"runs", "attributes": {"is-destroy":false, "message": "Taint azurerm_virtual_machine_extension.run_jdiscordbot", "refresh":false, "replace-addrs":["azurerm_virtual_machine_extension.run_jdiscordbot"]}, "relationships": {"workspace": {"data": {"type": "workspaces", "id": "${{ steps.workspace.outputs.id }}"}}}}}' \
+            https://app.terraform.io/api/v2/runs)
+          echo "Resource taint initiated. Response status: $(echo $RESPONSE | jq -r '.data.attributes.status')"
+
+      - name: Trigger Terraform Apply
+        id: trigger_apply
+        run: |
+          echo "Triggering Terraform Apply..."
+          RESPONSE=$(curl \
+            --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
+            --header "Content-Type: application/vnd.api+json" \
+            --request POST \
+            --data '{"data": {"attributes": {"message": "Triggered by GitHub Actions - Update JMusicBot"}, "type":"runs", "relationships": {"workspace": {"data": {"type": "workspaces", "id": "${{ steps.workspace.outputs.id }}"}}}}}' \
+            https://app.terraform.io/api/v2/runs)
+          RUN_ID=$(echo $RESPONSE | jq -r '.data.id')
+          echo "Terraform Run ID: $RUN_ID"
+          echo "::set-output name=run_id::$RUN_ID"
+
+      - name: Check Terraform Apply Status
+        id: check_apply
+        run: |
+          echo "Monitoring Terraform Apply status..."
+          start_time=$(date +%s)
+          timeout=600  # 10 minutes timeout
+          while true; do
+            current_time=$(date +%s)
+            if [ $((current_time - start_time)) -ge $timeout ]; then
+              echo "ERROR: Timeout reached. Terraform apply did not complete in 10 minutes."
+              echo "::set-output name=success::false"
+              exit 1
+            fi
+
+            STATUS=$(curl \
+              --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
+              --header "Content-Type: application/vnd.api+json" \
+              https://app.terraform.io/api/v2/runs/${{ steps.trigger_apply.outputs.run_id }} \
+              | jq -r '.data.attributes.status')
+            
+            echo "Current status: $STATUS"
+            
+            if [ "$STATUS" = "applied" ]; then
+              echo "SUCCESS: Terraform apply completed successfully."
+              echo "::set-output name=success::true"
+              break
+            elif [ "$STATUS" = "errored" ] || [ "$STATUS" = "canceled" ] || [ "$STATUS" = "discarded" ]; then
+              echo "ERROR: Terraform apply failed with status: $STATUS"
+              echo "::set-output name=success::false"
+              exit 1
+            elif [ "$STATUS" = "planned_and_finished" ]; then
+              echo "Plan finished. Initiating apply..."
+              curl \
+                --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
+                --header "Content-Type: application/vnd.api+json" \
+                --request POST \
+                https://app.terraform.io/api/v2/runs/${{ steps.trigger_apply.outputs.run_id }}/actions/apply
+            fi
+            
+            sleep 30
+          done
+
+  deploy-function:
+    needs: trigger-and-monitor-terraform
+    if: needs.trigger-and-monitor-terraform.outputs.apply_success == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: 'Deploy to Azure Functions'
+        uses: Azure/functions-action@v1
+        with: 
+          app-name: ${{ secrets.AZURE_FUNCTION_APP_NAME }}
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
+      
+      - name: Deployment Result
+        run: |
+          if [ $? -eq 0 ]; then
+            echo "SUCCESS: Azure Function deployment completed successfully."
+          else
+            echo "ERROR: Azure Function deployment failed."
+            exit 1
+          fi
+
+      - name: Workflow Summary
+        run: |
+          echo "========================================"
+          echo "Workflow Execution Summary:"
+          echo "----------------------------------------"
+          echo "1. Resource Taint: Completed"
+          echo "2. Terraform Apply: Successful"
+          echo "3. Azure Function Deployment: Successful"
+          echo "========================================"
+          echo "JMusicBot has been successfully updated and deployed."
