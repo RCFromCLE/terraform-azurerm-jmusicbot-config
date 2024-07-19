@@ -1,4 +1,4 @@
-name: Trigger Terraform and Deploy Function
+name: Trigger Terraform Apply
 
 on:
   repository_dispatch:
@@ -155,36 +155,3 @@ jobs:
             
             sleep 30
           done
-
-  deploy-function:
-    needs: trigger-and-monitor-terraform
-    if: needs.trigger-and-monitor-terraform.outputs.apply_success == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: 'Deploy to Azure Functions'
-        uses: Azure/functions-action@v1
-        with: 
-          app-name: ${{ secrets.AZURE_FUNCTION_APP_NAME }}
-          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
-      
-      - name: Deployment Result
-        run: |
-          if [ $? -eq 0 ]; then
-            echo "SUCCESS: Azure Function deployment completed successfully."
-          else
-            echo "ERROR: Azure Function deployment failed."
-            exit 1
-          fi
-
-      - name: Workflow Summary
-        run: |
-          echo "========================================"
-          echo "Workflow Execution Summary:"
-          echo "----------------------------------------"
-          echo "1. VM Power State: Checked and ensured running"
-          echo "2. Resource Taint: Completed"
-          echo "3. Terraform Apply: Successful"
-          echo "4. Azure Function Deployment: Successful"
-          echo "========================================"
-          echo "JMusicBot has been successfully updated and deployed."
