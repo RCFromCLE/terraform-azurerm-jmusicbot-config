@@ -8,11 +8,11 @@ on:
 env:
   TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
   TF_WORKSPACE_NAME: ${{ secrets.TF_WORKSPACE_NAME }}
-  AZURE_RESOURCE_GROUP: your-resource-group-name
-  AZURE_VM_NAME: your-vm-name
+  AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+  AZURE_VM_NAME: ${{ secrets.AZURE_VM_NAME }}
 
 jobs:
-  trigger-and-monitor-terraform:
+  trigger_and_monitor_terraform:
     runs-on: ubuntu-latest
     outputs:
       apply_success: ${{ steps.check_apply.outputs.success }}
@@ -25,22 +25,30 @@ jobs:
       - name: Check VM Power State
         run: |
           echo "Checking VM power state..."
+          if [ -z "$AZURE_RESOURCE_GROUP" ] || [ -z "$AZURE_VM_NAME" ]; then
+            echo "ERROR: AZURE_RESOURCE_GROUP or AZURE_VM_NAME is not set."
+            exit 1
+          fi
           VM_STATE=$(az vm get-instance-view \
-            --resource-group $AZURE_RESOURCE_GROUP \
-            --name $AZURE_VM_NAME \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_VM_NAME" \
             --query instanceView.statuses[1].displayStatus \
             -o tsv)
+          if [ $? -ne 0 ]; then
+            echo "ERROR: Failed to get VM state. Please check your resource group and VM name."
+            exit 1
+          fi
           echo "VM Power State: $VM_STATE"
           if [ "$VM_STATE" != "VM running" ]; then
             echo "Warning: VM is not in 'running' state. Current state: $VM_STATE"
             echo "Attempting to start the VM..."
-            az vm start --resource-group $AZURE_RESOURCE_GROUP --name $AZURE_VM_NAME
+            az vm start --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_VM_NAME"
             echo "Waiting for VM to be in running state..."
             while [ "$VM_STATE" != "VM running" ]; do
               sleep 30
               VM_STATE=$(az vm get-instance-view \
-                --resource-group $AZURE_RESOURCE_GROUP \
-                --name $AZURE_VM_NAME \
+                --resource-group "$AZURE_RESOURCE_GROUP" \
+                --name "$AZURE_VM_NAME" \
                 --query instanceView.statuses[1].displayStatus \
                 -o tsv)
               echo "Current VM state: $VM_STATE"
@@ -160,9 +168,9 @@ jobs:
             sleep 30
           done
 
-  deploy-function:
-    needs: trigger-and-monitor-terraform
-    if: needs.trigger-and-monitor-terraform.outputs.apply_success == 'true'
+  deploy_function:
+    needs: trigger_and_monitor_terraform
+    if: needs.trigger_and_monitor_terraform.outputs.apply_success == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
