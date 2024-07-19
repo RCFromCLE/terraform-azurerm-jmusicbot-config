@@ -1,4 +1,4 @@
-name: Deploy JDiscord Function App
+name: Deploy Node.js project to Azure Function App
 
 on:
   push:
@@ -21,6 +21,15 @@ jobs:
       with:
         repository: 'RCFromCLE/terraform-azurerm-jmusicbot'    # Specify the repository to checkout
 
+    - name: 'Debug Directory Structure'
+      run: |
+        echo "Listing root directory:"
+        ls
+        echo "Listing terraform-azurerm-jmusicbot directory:"
+        ls terraform-azurerm-jmusicbot
+        echo "Listing function directory:"
+        ls terraform-azurerm-jmusicbot/function
+
     - name: Setup Node ${{ env.NODE_VERSION }} Environment
       uses: actions/setup-node@v3
       with:
@@ -29,7 +38,7 @@ jobs:
     - name: 'Resolve Project Dependencies Using Npm'
       shell: pwsh
       run: |
-        cd 'terraform-azurerm-jmusicbot/function'
+        cd terraform-azurerm-jmusicbot/function
         npm install
         npm run build --if-present
         npm run test --if-present
