@@ -25,10 +25,8 @@ jobs:
       run: |
         echo "Listing root directory:"
         ls
-        echo "Listing terraform-azurerm-jmusicbot directory:"
-        ls terraform-azurerm-jmusicbot
         echo "Listing function directory:"
-        ls terraform-azurerm-jmusicbot/function
+        ls function
 
     - name: Setup Node ${{ env.NODE_VERSION }} Environment
       uses: actions/setup-node@v3
@@ -38,7 +36,7 @@ jobs:
     - name: 'Resolve Project Dependencies Using Npm'
       shell: pwsh
       run: |
-        cd terraform-azurerm-jmusicbot/function
+        cd function
         npm install
         npm run build --if-present
         npm run test --if-present
@@ -48,5 +46,5 @@ jobs:
       id: fa
       with:
         app-name: ${{ secrets.AZURE_FUNCTION_APP_NAME }}
-        package: 'terraform-azurerm-jmusicbot/function'
+        package: 'function'
         publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
