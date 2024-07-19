@@ -70,7 +70,7 @@ jobs:
 
       - name: Taint Resource
         run: |
-          echo "Tainting resource: azurerm_virtual_machine_extension.run_jdiscordbot"
+          echo "Tainting resource: module.jmusicbot.azurerm_virtual_machine_extension.run_jdiscordbot"
           RESPONSE=$(curl -s -w "\n%{http_code}" \
             --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
             --header "Content-Type: application/vnd.api+json" \
@@ -80,9 +80,9 @@ jobs:
                 "type": "runs",
                 "attributes": {
                   "is-destroy": false,
-                  "message": "Taint azurerm_virtual_machine_extension.run_jdiscordbot",
+                  "message": "Taint module.jmusicbot.azurerm_virtual_machine_extension.run_jdiscordbot",
                   "refresh": true,
-                  "replace-addrs": ["azurerm_virtual_machine_extension.run_jdiscordbot"]
+                  "replace-addrs": ["module.jmusicbot.azurerm_virtual_machine_extension.run_jdiscordbot"]
                 },
                 "relationships": {
                   "workspace": {
