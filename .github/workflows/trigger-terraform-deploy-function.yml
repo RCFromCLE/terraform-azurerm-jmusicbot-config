@@ -8,6 +8,8 @@ on:
 env:
   TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
   TF_WORKSPACE_NAME: ${{ secrets.TF_WORKSPACE_NAME }}
+  AZURE_RESOURCE_GROUP: your-resource-group-name
+  AZURE_VM_NAME: your-vm-name
 
 jobs:
   trigger-and-monitor-terraform:
@@ -15,6 +17,37 @@ jobs:
     outputs:
       apply_success: ${{ steps.check_apply.outputs.success }}
     steps:
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Check VM Power State
+        run: |
+          echo "Checking VM power state..."
+          VM_STATE=$(az vm get-instance-view \
+            --resource-group $AZURE_RESOURCE_GROUP \
+            --name $AZURE_VM_NAME \
+            --query instanceView.statuses[1].displayStatus \
+            -o tsv)
+          echo "VM Power State: $VM_STATE"
+          if [ "$VM_STATE" != "VM running" ]; then
+            echo "Warning: VM is not in 'running' state. Current state: $VM_STATE"
+            echo "Attempting to start the VM..."
+            az vm start --resource-group $AZURE_RESOURCE_GROUP --name $AZURE_VM_NAME
+            echo "Waiting for VM to be in running state..."
+            while [ "$VM_STATE" != "VM running" ]; do
+              sleep 30
+              VM_STATE=$(az vm get-instance-view \
+                --resource-group $AZURE_RESOURCE_GROUP \
+                --name $AZURE_VM_NAME \
+                --query instanceView.statuses[1].displayStatus \
+                -o tsv)
+              echo "Current VM state: $VM_STATE"
+            done
+            echo "VM is now running."
+          fi
+
       - name: Get Workspace ID
         id: workspace
         run: |
@@ -30,13 +63,46 @@ jobs:
       - name: Taint Resource
         run: |
           echo "Tainting resource: azurerm_virtual_machine_extension.run_jdiscordbot"
-          RESPONSE=$(curl \
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
             --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
             --header "Content-Type: application/vnd.api+json" \
             --request POST \
-            --data '{"data": {"type":"runs", "attributes": {"is-destroy":false, "message": "Taint azurerm_virtual_machine_extension.run_jdiscordbot", "refresh":false, "replace-addrs":["azurerm_virtual_machine_extension.run_jdiscordbot"]}, "relationships": {"workspace": {"data": {"type": "workspaces", "id": "${{ steps.workspace.outputs.id }}"}}}}}' \
+            --data '{
+              "data": {
+                "type": "runs",
+                "attributes": {
+                  "is-destroy": false,
+                  "message": "Taint azurerm_virtual_machine_extension.run_jdiscordbot",
+                  "refresh": true,
+                  "replace-addrs": ["azurerm_virtual_machine_extension.run_jdiscordbot"]
+                },
+                "relationships": {
+                  "workspace": {
+                    "data": {
+                      "type": "workspaces",
+                      "id": "${{ steps.workspace.outputs.id }}"
+                    }
+                  }
+                }
+              }
+            }' \
             https://app.terraform.io/api/v2/runs)
-          echo "Resource taint initiated. Response status: $(echo $RESPONSE | jq -r '.data.attributes.status')"
+          
+          HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          echo "Response body: $BODY"
+          echo "HTTP status: $HTTP_STATUS"
+          
+          if [ "$HTTP_STATUS" -eq 201 ]; then
+            echo "Resource taint initiated successfully."
+            RUN_ID=$(echo "$BODY" | jq -r '.data.id')
+            echo "Taint run ID: $RUN_ID"
+          else
+            echo "Failed to initiate resource taint. HTTP status: $HTTP_STATUS"
+            echo "Error message: $(echo "$BODY" | jq -r '.errors[0].title')"
+            exit 1
+          fi
 
       - name: Trigger Terraform Apply
         id: trigger_apply
@@ -120,8 +186,9 @@ jobs:
           echo "========================================"
           echo "Workflow Execution Summary:"
           echo "----------------------------------------"
-          echo "1. Resource Taint: Completed"
-          echo "2. Terraform Apply: Successful"
-          echo "3. Azure Function Deployment: Successful"
+          echo "1. VM Power State: Checked and ensured running"
+          echo "2. Resource Taint: Completed"
+          echo "3. Terraform Apply: Successful"
+          echo "4. Azure Function Deployment: Successful"
           echo "========================================"
           echo "JMusicBot has been successfully updated and deployed."
