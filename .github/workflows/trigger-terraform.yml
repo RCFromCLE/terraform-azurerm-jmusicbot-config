@@ -1,0 +1,42 @@
+name: Trigger Terraform and Taint Resource
+
+on:
+  repository_dispatch:
+    types: [module-updated]
+  workflow_dispatch:  # Allow manual triggers
+
+env:
+  TF_CLOUD_ORGANIZATION: "your-org-name"
+  TF_WORKSPACE_NAME: "your-workspace-name"
+
+jobs:
+  trigger-terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get Workspace ID
+        id: workspace
+        run: |
+          WORKSPACE_ID=$(curl \
+            --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
+            --header "Content-Type: application/vnd.api+json" \
+            https://app.terraform.io/api/v2/organizations/${TF_CLOUD_ORGANIZATION}/workspaces/${TF_WORKSPACE_NAME} \
+            | jq -r '.data.id')
+          echo "::set-output name=id::$WORKSPACE_ID"
+
+      - name: Taint VM Extension
+        run: |
+          curl \
+            --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
+            --header "Content-Type: application/vnd.api+json" \
+            --request POST \
+            --data '{"data": {"type": "runs", "attributes": {"message": "Taint VM extension", "is-destroy": false, "variables": {"TF_CLI_ARGS": "-replace=azurerm_virtual_machine_extension.run_jdiscordbot"}}, "relationships": {"workspace": {"data": {"type": "workspaces", "id": "${{ steps.workspace.outputs.id }}"}}}}}' \
+            https://app.terraform.io/api/v2/runs
+
+      - name: Trigger Terraform Apply
+        run: |
+          curl \
+            --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
+            --header "Content-Type: application/vnd.api+json" \
+            --request POST \
+            --data '{"data": {"type": "runs", "attributes": {"message": "Triggered by GitHub Actions - Update JMusicBot"}, "relationships": {"workspace": {"data": {"type": "workspaces", "id": "${{ steps.workspace.outputs.id }}"}}}}}' \
+            https://app.terraform.io/api/v2/runs
