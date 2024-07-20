@@ -152,12 +152,3 @@ jobs:
           echo "Restoring VM to initial power state (powering off)..."
           az vm deallocate --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_VM_NAME"
           echo "VM powered off."
-
-      - name: Create New Release
-        if: steps.check_release.outputs.new_release == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create ${{ steps.check_release.outputs.latest_version }} \
-            --title "Release ${{ steps.check_release.outputs.latest_version }}" \
-            --notes "Updated to module version ${{ steps.check_release.outputs.latest_version }}"
