@@ -50,3 +50,134 @@ jobs:
           git add variables.tf
           git commit -m "Update jar_path in variables.tf to $new_jar_path"
           git push
+          
+      - name: Azure Login
+        if: steps.check_release.outputs.new_release == 'true'
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Check Initial VM Power State
+        if: steps.check_release.outputs.new_release == 'true'
+        id: check_initial_state
+        run: |
+          echo "Checking initial VM power state..."
+          VM_STATE=$(az vm get-instance-view \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_VM_NAME" \
+            --query instanceView.statuses[1].displayStatus \
+            -o tsv)
+          echo "Initial VM Power State: $VM_STATE"
+          echo "initial_state=$VM_STATE" >> $GITHUB_OUTPUT
+          
+          if [ "$VM_STATE" != "VM running" ]; then
+            echo "Starting VM..."
+            az vm start --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_VM_NAME"
+            echo "Waiting for VM to be in running state..."
+            while [ "$VM_STATE" != "VM running" ]; do
+              sleep 30
+              VM_STATE=$(az vm get-instance-view \
+                --resource-group "$AZURE_RESOURCE_GROUP" \
+                --name "$AZURE_VM_NAME" \
+                --query instanceView.statuses[1].displayStatus \
+                -o tsv)
+              echo "Current VM state: $VM_STATE"
+            done
+            echo "VM is now running."
+          fi
+
+      - name: Initialize Terraform
+        if: steps.check_release.outputs.new_release == 'true'
+        run: terraform init
+
+      - name: Apply Terraform Configuration
+        if: steps.check_release.outputs.new_release == 'true'
+        run: terraform apply -auto-approve
+
+      - name: Get Workspace ID
+        if: steps.check_release.outputs.new_release == 'true'
+        id: workspace
+        run: |
+          echo "Getting Terraform Cloud Workspace ID..."
+          WORKSPACE_ID=$(curl \
+            --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
+            --header "Content-Type: application/vnd.api+json" \
+            https://app.terraform.io/api/v2/organizations/${TF_CLOUD_ORGANIZATION}/workspaces/${TF_WORKSPACE_NAME} \
+            | jq -r '.data.id')
+          echo "Workspace ID: $WORKSPACE_ID"
+          echo "id=$WORKSPACE_ID" >> $GITHUB_OUTPUT
+
+      - name: Trigger Terraform Apply
+        if: steps.check_release.outputs.new_release == 'true'
+        id: apply
+        run: |
+          echo "Triggering Terraform Apply..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
+            --header "Content-Type: application/vnd.api+json" \
+            --request POST \
+            --data '{
+              "data": {
+                "type": "runs",
+                "attributes": {
+                  "is-destroy": false,
+                  "message": "Triggered by GitHub Actions - New module version ${{ steps.check_release.outputs.latest_version }}",
+                  "auto-apply": true,
+                  "refresh": true,
+                  "replace-addrs": ["module.jmusicbot.azurerm_virtual_machine_extension.run_jdiscordbot"]
+                },
+                "relationships": {
+                  "workspace": {
+                    "data": {
+                      "type": "workspaces",
+                      "id": "${{ steps.workspace.outputs.id }}"
+                    }
+                  }
+                }
+              }
+            }' \
+            https://app.terraform.io/api/v2/runs)
+          
+          HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          if [ "$HTTP_STATUS" -eq 201 ]; then
+            echo "Terraform apply triggered successfully."
+            RUN_ID=$(echo "$BODY" | jq -r '.data.id')
+            echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+          else
+            echo "Failed to trigger Terraform apply. HTTP status: $HTTP_STATUS"
+            echo "Error message: $(echo "$BODY" | jq -r '.errors[0].title')"
+            exit 1
+          fi
+
+      - name: Monitor Terraform Apply Status
+        if: steps.check_release.outputs.new_release == 'true'
+        run: |
+          echo "Monitoring Terraform Apply status..."
+          while true; do
+            STATUS=$(curl \
+              --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
+              --header "Content-Type: application/vnd.api+json" \
+              https://app.terraform.io/api/v2/runs/${{ steps.apply.outputs.run_id }} \
+              | jq -r '.data.attributes.status')
+            
+            echo "Current status: $STATUS"
+            
+            if [ "$STATUS" = "applied" ]; then
+              echo "SUCCESS: Terraform apply completed successfully."
+              break
+            elif [ "$STATUS" = "errored" ] || [ "$STATUS" = "canceled" ] || [ "$STATUS" = "discarded" ]; then
+              echo "ERROR: Terraform apply failed with status: $STATUS"
+              exit 1
+            fi
+            
+            sleep 30
+          done
+
+      - name: Restore Initial VM Power State
+        if: steps.check_release.outputs.new_release == 'true' && steps.check_initial_state.outputs.initial_state != 'VM running'
+        run: |
+          echo "Restoring VM to initial power state (powering off)..."
+          az vm deallocate --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_VM_NAME"
+          echo "VM powered off."
