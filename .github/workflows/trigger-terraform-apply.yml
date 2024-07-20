@@ -1,4 +1,5 @@
 name: trigger-terraform-apply
+
 on:
   schedule:
     - cron: '30 5 * * *'  # Run daily at 5:30 AM UTC
@@ -50,7 +51,7 @@ jobs:
           git add variables.tf
           git commit -m "Update jar_path in variables.tf to $new_jar_path"
           git push
-          
+
       - name: Azure Login
         if: steps.check_release.outputs.new_release == 'true'
         uses: azure/login@v1
@@ -69,7 +70,7 @@ jobs:
             -o tsv)
           echo "Initial VM Power State: $VM_STATE"
           echo "initial_state=$VM_STATE" >> $GITHUB_OUTPUT
-          
+
           if [ "$VM_STATE" != "VM running" ]; then
             echo "Starting VM..."
             az vm start --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_VM_NAME"
@@ -137,10 +138,10 @@ jobs:
               }
             }' \
             https://app.terraform.io/api/v2/runs)
-          
+
           HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
           BODY=$(echo "$RESPONSE" | sed '$d')
-          
+
           if [ "$HTTP_STATUS" -eq 201 ]; then
             echo "Terraform apply triggered successfully."
             RUN_ID=$(echo "$BODY" | jq -r '.data.id')
@@ -161,9 +162,9 @@ jobs:
               --header "Content-Type: application/vnd.api+json" \
               https://app.terraform.io/api/v2/runs/${{ steps.apply.outputs.run_id }} \
               | jq -r '.data.attributes.status')
-            
+
             echo "Current status: $STATUS"
-            
+
             if [ "$STATUS" = "applied" ]; then
               echo "SUCCESS: Terraform apply completed successfully."
               break
@@ -171,7 +172,7 @@ jobs:
               echo "ERROR: Terraform apply failed with status: $STATUS"
               exit 1
             fi
-            
+
             sleep 30
           done
 
