@@ -1,8 +1,8 @@
-name: Trigger Terraform Apply
+name: Check Config Release and Trigger Terraform Apply
 
 on:
-  repository_dispatch:
-    types: [module-updated]
+  schedule:
+    - cron: '0 */6 * * *'  # Run every 6 hours
   workflow_dispatch:
 
 env:
@@ -10,17 +10,34 @@ env:
   TF_WORKSPACE_NAME: ${{ secrets.TF_WORKSPACE_NAME }}
   AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
   AZURE_VM_NAME: ${{ secrets.AZURE_VM_NAME }}
+  MODULE_REPO: RCFromCLE/terraform-azurerm-jmusicbot
 
 jobs:
-  trigger-and-monitor-terraform:
+  check-release-and-apply:
     runs-on: ubuntu-latest
     steps:
+      - name: Check for new module release
+        id: check_release
+        run: |
+          module_latest_release=$(curl -s https://api.github.com/repos/${{ env.MODULE_REPO }}/releases/latest | jq -r .tag_name)
+          echo "Latest module release: $module_latest_release"
+          config_latest_release=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .tag_name)
+          echo "Latest config release: $config_latest_release"
+          if [ "$module_latest_release" != "$config_latest_release" ]; then
+            echo "new_release=true" >> $GITHUB_OUTPUT
+            echo "latest_version=$module_latest_release" >> $GITHUB_OUTPUT
+          else
+            echo "new_release=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Azure Login
+        if: steps.check_release.outputs.new_release == 'true'
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Check Initial VM Power State
+        if: steps.check_release.outputs.new_release == 'true'
         id: check_initial_state
         run: |
           echo "Checking initial VM power state..."
@@ -30,7 +47,7 @@ jobs:
             --query instanceView.statuses[1].displayStatus \
             -o tsv)
           echo "Initial VM Power State: $VM_STATE"
-          echo "::set-output name=initial_state::$VM_STATE"
+          echo "initial_state=$VM_STATE" >> $GITHUB_OUTPUT
           
           if [ "$VM_STATE" != "VM running" ]; then
             echo "Starting VM..."
@@ -49,6 +66,7 @@ jobs:
           fi
 
       - name: Get Workspace ID
+        if: steps.check_release.outputs.new_release == 'true'
         id: workspace
         run: |
           echo "Getting Terraform Cloud Workspace ID..."
@@ -58,9 +76,10 @@ jobs:
             https://app.terraform.io/api/v2/organizations/${TF_CLOUD_ORGANIZATION}/workspaces/${TF_WORKSPACE_NAME} \
             | jq -r '.data.id')
           echo "Workspace ID: $WORKSPACE_ID"
-          echo "::set-output name=id::$WORKSPACE_ID"
+          echo "id=$WORKSPACE_ID" >> $GITHUB_OUTPUT
 
       - name: Trigger Terraform Apply
+        if: steps.check_release.outputs.new_release == 'true'
         id: apply
         run: |
           echo "Triggering Terraform Apply..."
@@ -73,7 +92,7 @@ jobs:
                 "type": "runs",
                 "attributes": {
                   "is-destroy": false,
-                  "message": "Triggered by GitHub Actions",
+                  "message": "Triggered by GitHub Actions - New module version ${{ steps.check_release.outputs.latest_version }}",
                   "auto-apply": true,
                   "refresh": true,
                   "replace-addrs": ["module.jmusicbot.azurerm_virtual_machine_extension.run_jdiscordbot"]
@@ -96,7 +115,7 @@ jobs:
           if [ "$HTTP_STATUS" -eq 201 ]; then
             echo "Terraform apply triggered successfully."
             RUN_ID=$(echo "$BODY" | jq -r '.data.id')
-            echo "::set-output name=run_id::$RUN_ID"
+            echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
           else
             echo "Failed to trigger Terraform apply. HTTP status: $HTTP_STATUS"
             echo "Error message: $(echo "$BODY" | jq -r '.errors[0].title')"
@@ -104,6 +123,7 @@ jobs:
           fi
 
       - name: Monitor Terraform Apply Status
+        if: steps.check_release.outputs.new_release == 'true'
         run: |
           echo "Monitoring Terraform Apply status..."
           while true; do
@@ -127,8 +147,17 @@ jobs:
           done
 
       - name: Restore Initial VM Power State
-        if: steps.check_initial_state.outputs.initial_state != 'VM running'
+        if: steps.check_release.outputs.new_release == 'true' && steps.check_initial_state.outputs.initial_state != 'VM running'
         run: |
           echo "Restoring VM to initial power state (powering off)..."
           az vm deallocate --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_VM_NAME"
           echo "VM powered off."
+
+      - name: Create New Release
+        if: steps.check_release.outputs.new_release == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create ${{ steps.check_release.outputs.latest_version }} \
+            --title "Release ${{ steps.check_release.outputs.latest_version }}" \
+            --notes "Updated to module version ${{ steps.check_release.outputs.latest_version }}"
