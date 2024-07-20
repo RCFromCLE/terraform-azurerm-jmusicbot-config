@@ -17,6 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
 
       - name: Check for new module release
         id: check_release
@@ -55,7 +57,7 @@ jobs:
           git add variables.tf
           git commit -m "Update jar_path in variables.tf to $new_jar_path"
           git push https://RCFromCLE:${{ secrets.PAT_TOKEN }}@github.com/RCFromCLE/terraform-azurerm-jmusicbot-config.git
-
+          
       - name: Azure Login
         if: steps.check_release.outputs.new_release == 'true'
         uses: azure/login@v1
