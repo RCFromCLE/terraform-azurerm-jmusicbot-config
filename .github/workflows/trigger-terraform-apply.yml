@@ -2,8 +2,8 @@ name: trigger-terraform-apply
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # Run every 6 hours
-  workflow_dispatch:
+    - cron: '30 5 * * *'  # Run daily at 5:30 AM UTC
+  workflow_dispatch:  # Keep manual trigger option
 
 env:
   TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
@@ -13,22 +13,44 @@ env:
   MODULE_REPO: RCFromCLE/terraform-azurerm-jmusicbot
 
 jobs:
-  check-release-and-apply:
+  check-and-apply:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
+
       - name: Check for new module release
         id: check_release
         run: |
           module_latest_release=$(curl -s https://api.github.com/repos/${{ env.MODULE_REPO }}/releases/latest | jq -r .tag_name)
           echo "Latest module release: $module_latest_release"
-          config_latest_release=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .tag_name)
-          echo "Latest config release: $config_latest_release"
-          if [ "$module_latest_release" != "$config_latest_release" ]; then
+          current_version=$(grep 'version = ' main.tf | sed 's/.*version = "\(.*\)".*/\1/')
+          echo "Current version: $current_version"
+          if [ "$module_latest_release" != "$current_version" ]; then
             echo "new_release=true" >> $GITHUB_OUTPUT
             echo "latest_version=$module_latest_release" >> $GITHUB_OUTPUT
           else
             echo "new_release=false" >> $GITHUB_OUTPUT
+            echo "No new release found. Exiting workflow."
           fi
+
+      - name: Update main.tf
+        if: steps.check_release.outputs.new_release == 'true'
+        run: |
+          sed -i 's/version = "[0-9.]*"/version = "${{ steps.check_release.outputs.latest_version }}"/' main.tf
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add main.tf
+          git commit -m "Update module version to ${{ steps.check_release.outputs.latest_version }}"
+          git push
+
+      - name: Update variables.tf
+        if: steps.check_release.outputs.new_release == 'true'
+        run: |
+          new_jar_path="JMusicBot-${{ steps.check_release.outputs.latest_version }}.jar"
+          sed -i 's/default\s*=\s*"JMusicBot-.*\.jar"/default = "'$new_jar_path'"/' variables.tf
+          git add variables.tf
+          git commit -m "Update jar_path in variables.tf to $new_jar_path"
+          git push
 
       - name: Azure Login
         if: steps.check_release.outputs.new_release == 'true'
