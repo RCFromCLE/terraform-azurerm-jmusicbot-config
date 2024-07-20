@@ -1,4 +1,4 @@
-name: Check for Module Update and Apply
+name: trigger-terraform-apply
 
 on:
   schedule:
@@ -92,6 +92,11 @@ jobs:
             done
             echo "VM is now running."
           fi
+
+      - name: Terraform Login
+        if: steps.check_release.outputs.new_release == 'true'
+        run: |
+          echo ${{ secrets.TF_API_TOKEN }} | terraform login -token-stdin
 
       - name: Initialize Terraform
         if: steps.check_release.outputs.new_release == 'true'
