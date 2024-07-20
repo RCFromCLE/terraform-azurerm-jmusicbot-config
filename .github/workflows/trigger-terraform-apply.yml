@@ -1,4 +1,4 @@
-name: Check Config Release and Trigger Terraform Apply
+name: trigger-terraform-apply
 
 on:
   schedule:
