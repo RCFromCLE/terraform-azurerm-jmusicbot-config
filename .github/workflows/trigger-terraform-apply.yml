@@ -1,4 +1,4 @@
-name: trigger-terraform-apply
+name: Check for Module Update and Apply
 
 on:
   schedule:
@@ -57,15 +57,19 @@ jobs:
           git add variables.tf
           git commit -m "Update jar_path in variables.tf to $new_jar_path"
           git push https://RCFromCLE:${{ secrets.PAT_TOKEN }}@github.com/RCFromCLE/terraform-azurerm-jmusicbot-config.git
-          
+
+      - name: Exit if no new release found (scheduled run)
+        if: steps.check_release.outputs.new_release == 'false' && github.event_name == 'schedule'
+        run: |
+          echo "No new release found. Exiting workflow."
+          exit 0
+
       - name: Azure Login
-        if: steps.check_release.outputs.new_release == 'true'
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Check Initial VM Power State
-        if: steps.check_release.outputs.new_release == 'true'
         id: check_initial_state
         run: |
           echo "Checking initial VM power state..."
@@ -94,20 +98,16 @@ jobs:
           fi
 
       - name: Terraform Login
-        if: steps.check_release.outputs.new_release == 'true'
         run: |
           echo ${{ secrets.TF_API_TOKEN }} | terraform login -token-stdin
 
       - name: Initialize Terraform
-        if: steps.check_release.outputs.new_release == 'true'
         run: terraform init
 
       - name: Apply Terraform Configuration
-        if: steps.check_release.outputs.new_release == 'true'
         run: terraform apply -auto-approve
 
       - name: Get Workspace ID
-        if: steps.check_release.outputs.new_release == 'true'
         id: workspace
         run: |
           echo "Getting Terraform Cloud Workspace ID..."
@@ -120,7 +120,6 @@ jobs:
           echo "id=$WORKSPACE_ID" >> $GITHUB_OUTPUT
 
       - name: Trigger Terraform Apply
-        if: steps.check_release.outputs.new_release == 'true'
         id: apply
         run: |
           echo "Triggering Terraform Apply..."
@@ -164,7 +163,6 @@ jobs:
           fi
 
       - name: Monitor Terraform Apply Status
-        if: steps.check_release.outputs.new_release == 'true'
         run: |
           echo "Monitoring Terraform Apply status..."
           while true; do
@@ -188,7 +186,7 @@ jobs:
           done
 
       - name: Restore Initial VM Power State
-        if: steps.check_release.outputs.new_release == 'true' && steps.check_initial_state.outputs.initial_state != 'VM running'
+        if: steps.check_initial_state.outputs.initial_state != 'VM running'
         run: |
           echo "Restoring VM to initial power state (powering off)..."
           az vm deallocate --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_VM_NAME"
