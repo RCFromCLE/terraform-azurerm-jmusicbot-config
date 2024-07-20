@@ -1,4 +1,4 @@
-name: Check for Module Update and Apply
+name: Check for Module Update and TF Apply
 
 on:
   schedule:
@@ -54,6 +54,7 @@ jobs:
           echo "Latest JMusicBot jar release: $jar_latest_release"
           new_jar_path="JMusicBot-${jar_latest_release}.jar"
           echo "new_jar_path=$new_jar_path" >> $GITHUB_OUTPUT
+          echo "jar_latest_release=$jar_latest_release" >> $GITHUB_OUTPUT
 
       - name: Update variables.tf
         if: steps.check_jar.outputs.new_jar_path != 'false'
@@ -139,7 +140,7 @@ jobs:
                 "type": "runs",
                 "attributes": {
                   "is-destroy": false,
-                  "message": "Triggered by GitHub Actions - New module version ${{ steps.check_release.outputs.latest_version }}",
+                  "message": "New JMusicBot version detected - '${{ steps.check_jar.outputs.jar_latest_release }}'",
                   "auto-apply": true,
                   "refresh": true,
                   "replace-addrs": ["module.jmusicbot.azurerm_virtual_machine_extension.run_jdiscordbot"]
