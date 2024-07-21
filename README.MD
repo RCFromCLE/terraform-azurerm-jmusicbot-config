@@ -32,7 +32,7 @@ This configuration repository automates the deployment of JMusicBot on Azure usi
    az ad sp create-for-rbac --name "tf-jdiscord-gh-update-pipeline" --role contributor --scopes /subscriptions/<your-subscription-id>
 ```
 
-3.  Update main.tf with your Terraform Cloud details for borth workspaces. Below is an example of the main.tf's terraform cloud block for the primary workspace. You will need to repeat this process for the keyvault workspace as well.
+3.  Update main.tf with your Terraform Cloud details for borth workspaces. Below is an example of the main.tf's terraform cloud block for the primary workspace. You will need to repeat this process for the Key Vault workspace as well.
 
 ```hcl
    terraform {
@@ -61,7 +61,7 @@ general_channel_id  = ""
 music_channel_id    = ""    
 ```
 
-terraform.tfvars for keyvault workspace:
+terraform.tfvars for Key Vault workspace:
 
 ```hcl
 subscription_id = ""
@@ -101,25 +101,34 @@ Verify after running terraform init for the kv and primary config you can see th
 
 ![alt text](images/image-1.png)
 ![alt text](images/image-4.png)
-For each workspace, enable VCS integration and select your GitHub config repository, be sure to set the keyvault workspace to use the correct working directory, jdiscord-kv-config.
+For each workspace, enable VCS integration and select your GitHub config repository, be sure to set the Key Vault workspace to use the correct working directory, jdiscord-kv-config.
 ![alt text](images/image-3.png)
-In the primary orksapce, set the run trigger to run after the keyvault workspace.
+In the primary workspace, set the run trigger to run after the Key Vault workspace.
 ![alt text](images/image-2.png)
 
-You can now trigger a run by pushing a change to the main branch of the keyvault config directory or by manually running a plan and apply in the keyvault workspace through the Terraform Cloud UI. Once the keyvault workspace has completed, the primary workspace will automatically trigger and run. Once completed, you should have a fully deployed JMusicBot, verify the bot is running by checking the Azure VM, function app, and that the bot is online in Discord and can play music.
+You can now trigger a run by pushing a change to the main branch of the Key Vault config directory or by manually running a plan and apply in the Key Vault workspace through the Terraform Cloud UI. Once the Key Vault workspace has been completed, the primary workspace will automatically trigger and run. Once completed, you should have a fully deployed JMusicBot, verify the bot is running by checking the Azure VM, function app, and that the bot is online in Discord and can play music.
 
-6.  Setup GitHub Actions Secrets for workflows. VSCode > GitHub Actions Extension > Settings > Secrets:
-<br>
-    - ***AZURE_CREDENTIALS***: Azure Service Principal credentials
-    - ***AZURE_FUNCTIONAPP_PUBLISH_PROFILE***: Azure Function App publish profile
-    - ***AZURE_FUNCTION_APP_NAME***: Azure Function App name
-    - ***AZURE_RESOURCE_GROUP***: Azure Resource Group name
-    - ***AZURE_VM_NAME***: Azure VM name
-    - ***PAT_TOKEN***: GitHub Personal Access Token
-    - ***TF_API_TOKEN***: Terraform Cloud API Token
-    - ***TF_CLOUD_ORGANIZATION***: Terraform Cloud organization name
-    - ***TF_WORKSPACE_NAME***: Terraform Cloud workspace name
-   <br>
+6.  ### Setup GitHub Actions Secrets for Workflows
+
+- **`AZURE_CREDENTIALS`**: Azure Service Principal credentials
+  - [How to create and configure Azure Service Principal credentials](link-to-instructions)
+- **`AZURE_FUNCTIONAPP_PUBLISH_PROFILE`**: Azure Function App publish profile
+  - [How to get the Azure Function App publish profile](link-to-instructions)
+- **`AZURE_FUNCTION_APP_NAME`**: Azure Function App name
+  - [How to find your Azure Function App name](link-to-instructions)
+- **`AZURE_RESOURCE_GROUP`**: Azure Resource Group name
+  - [How to find your Azure Resource Group name](link-to-instructions)
+- **`AZURE_VM_NAME`**: Azure VM name
+  - [How to find your Azure VM name](link-to-instructions)
+- **`PAT_TOKEN`**: GitHub Personal Access Token
+  - [How to create a GitHub Personal Access Token](link-to-instructions)
+- **`TF_API_TOKEN`**: Terraform Cloud API Token
+  - [How to create a Terraform Cloud API Token](link-to-instructions)
+- **`TF_CLOUD_ORGANIZATION`**: Terraform Cloud organization name
+  - [How to set up your Terraform Cloud organization](link-to-instructions)
+- **`TF_WORKSPACE_NAME`**: Terraform Cloud workspace name
+  - [How to create a Terraform Cloud workspace](link-to-instructions)
+
 
 7.  GitHub Actions Workflows:
    - deploy-function.yml: Deploys Azure Function on push to master
@@ -139,10 +148,10 @@ You can now trigger a run by pushing a change to the main branch of the keyvault
 - Steps: 
   - Check for updates to the terraform-azurerm-jmusicbot module and JMusicBot jar
   - Update configurations
-  - Azure login and Terraform init to download latest terraform-azurerm-jmusicbot module
+  - Azure login and Terraform init to download the latest terraform-azurerm-jmusicbot module
   - VM state management 
   - Terraform operations - Plan, Apply
-  - Conditions: If updates found, If VM is off, If VM is on
+  - Conditions: If updates are found, If VM is off, If VM is on
 
 #### Module Structure
 
@@ -157,13 +166,13 @@ This project uses the [`terraform-azurerm-jmusicbot`](https://github.com/RCFromC
 
 #### Automatic Updates
 
-Checks for new module and jar releases, updates configurations, and triggers Terraform apply if updates are found.
+Checks for new module and jar releases, updates, configurations, and triggers Terraform apply if updates are found.
 
 #### VM Management
 
 The workflow intelligently manages the VM's power state during updates:
 1. Pre-update Check: Verifies the VM's current power state.
-2. Activation: If the VM is off, the workflow starts it before applying changes.
+2. Activation: If the VM is off, the workflow starts before applying changes.
 3. Update Process: Applies necessary updates and configuration changes while the VM is running.
 4. State Restoration: After updates, if the VM was initially off, the workflow returns it to a powered-off state.
 5. Always-On Option: For scenarios requiring constant uptime, the workflow can be configured to leave the VM running.
