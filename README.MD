@@ -9,10 +9,16 @@ This configuration repository automates the deployment of JMusicBot on Azure usi
 ### Prerequisites
 
 - Azure subscription
+- VS Code with the below extensions:
+   - Azure Tools
+   - PowerShell
+   - GitHub Actions
+   - Terraform - HashiCorp
+   - HCP - Terraform
 - GitHub account
-- Terraform Cloud account
-- Azure CLI
-- Discord Bot with necessary permissions and token
+- Terraform Cloud account and Organization
+- Azure CLI installed locally
+- Discord Application (Bot) with necessary permissions and token
 
 ### Setup Instructions
 
