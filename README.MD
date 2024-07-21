@@ -53,7 +53,17 @@ This configuration repository automates the deployment of JMusicBot on Azure usi
      cloud {
        organization = "YourOrganization"
        workspaces {
-         name = "azure-jmusicbot"
+         name = "azure-jmusicbot-kv"
+       }
+     }
+   }
+```
+```hcl
+   terraform {
+     cloud {
+       organization = "YourOrganization"
+       workspaces {
+         name = "azure-jmusicbot-primary"
        }
      }
    }
