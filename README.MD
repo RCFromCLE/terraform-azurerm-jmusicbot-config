@@ -182,6 +182,8 @@ You can now trigger a run by:
 
 Once the Key Vault workspace has completed, the primary workspace will automatically trigger and run.
 
+You now need to complete step 10 and setup the secrets for your GitHub Action. Once you have the secrets in place run the deploy-function workflow.
+
 ### Verification
 
 After completion, you should have a fully deployed JMusicBot. Verify the deployment by:
@@ -199,7 +201,7 @@ To update the Discord token or your Azure credentials, follow these steps:
  - Go to Terraform Cloud and update the workspace variables for the key vault workspace.
  - Trigger a run in the key vault workspace. This will update the secrets in  JMusicBot project's Key Vault. The updated secrets will be referenced in the primary workspace. The primary workspace will trigger a run and update the Azure resources.
 
-Now that your solution is deployed we need to setup the secrets each GitHub Action workflow will require. This is so we can keep the MusicBot running the latest version as sometimes only the latest version is the working version and manually performing updates can suck.
+Now that your solution is deployed we need to setup the secrets each GitHub Action workflow will require. This is so we can keep JMusicBot running the latest version as sometimes only the latest version is the working version and manually performing updates can suck.
 
 10.  ### Setup GitHub Actions Secrets for Workflows
 
