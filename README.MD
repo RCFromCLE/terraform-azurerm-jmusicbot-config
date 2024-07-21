@@ -137,10 +137,6 @@ You can now trigger a run by:
 - Pushing a change to the main branch of the Key Vault config directory, or
 - Manually run a plan and apply in the Key Vault workspace through the Terraform Cloud UI
 
-![Key Vault run trigger](images/kv_run_trigger.png)
-![Key Vault Workspace Apply](images/kv_workspace_apply.png)
-![Primary Workspace run triggered](images/primary_workspace_triggered.png)
-
 Once the Key Vault workspace has completed, the primary workspace will automatically trigger and run.
 
 ### Verification
@@ -151,6 +147,14 @@ After completion, you should have a fully deployed JMusicBot. Verify the deploym
 -  Ensuring the bot is online in Discord and can play music
 -  Confirming the bot joins when you have at least one user in the music channel
 -  Confirm bot responds to "start music bot" within 5 minutes and the bot joins within 6 minutes.
+
+
+### Updating Secrets After Deployment
+
+To update the Discord token or your Azure credentials, follow these steps:
+
+1. Go to Terraform Cloud and update the workspace variables for the key vault workspace.
+2. Trigger a run in the key vault workspace. This will update the secrets in  JMusicBot project's Key Vault. The updated secrets will be referenced in the primary workspace. The primary workspace will trigger a run and update the Azure resources.
 
 Now that your solution is deployed we need to setup the secrets each GitHub Action workflow will require. This is so we can keep the MusicBot running the latest version as sometimes only the latest version is the working version and manually performing updates can suck.
 
@@ -174,17 +178,19 @@ Now that your solution is deployed we need to setup the secrets each GitHub Acti
 
 
 ### GitHub Actions Workflows:
-   - ###### File:  `deploy-function.yml` | Title - deploy-function
+   - ###### File:  `deploy-function.yml` | Title - deploy-function | 
    - ###### File:  `trigger-terraform-apply.yml` | Title - Check for JMusicBot Update and TF Apply
 
 ##### deploy-function
-*Note*: If you manually run this it will deploy the function within the function/jdiscord-function directory. If you 
+![Deploy Function](https://github.com/RCFromCLE/terraform-azurerm-jmusicbot-config/actions/workflows/deploy-function.yml/badge.svg)
+- Description: Deploys the Azure Function App that manages the VM lifecycle based on Discord activity. Do this after the initial deployment of the JMusicBot.
 - Triggers: Push to master, manual
 - Environment: dev
 - Steps: Checkout code, Setup Node.js, Install dependencies, Build and test, Deploy to Azure Functions
 
 ##### Check for Module Update and TF Apply
-*Note*: If you manually trigger this workflow, it will run and terraform apply regardless of if there is an update to JMusicBot, scheduled runs will only run if there is an update to [`terraform-azurerm-jmusicbot`](https://github.com/RCFromCLE/terraform-azurerm-jmusicbot).
+[![Check for Module Update and TF Apply](https://github.com/RCFromCLE/terraform-azurerm-jmusicbot-config/actions/workflows/trigger-terraform-apply.yml/badge.svg)](https://github.com/RCFromCLE/terraform-azurerm-jmusicbot-config/actions/workflows/trigger-terraform-apply.yml)
+- Description: Checks for updates to the terraform-azurerm-jmusicbot module and JMusicBot jar, updates configurations, and triggers Terraform apply if updates are found.
 - Triggers: Daily at 5:30 AM EST, manual
 - Steps: 
   - Check for updates to the terraform-azurerm-jmusicbot module and JMusicBot jar
@@ -193,6 +199,8 @@ Now that your solution is deployed we need to setup the secrets each GitHub Acti
   - VM state management 
   - Terraform operations - Plan, Apply
   - Conditions: If updates are found, If VM is off, If VM is on
+
+*Note*: If you manually trigger this workflow, it will run and terraform apply regardless of if there is an update to JMusicBot, scheduled runs will only run if there is an update to [`terraform-azurerm-jmusicbot`](https://github.com/RCFromCLE/terraform-azurerm-jmusicbot).
 
 #### Module Structure
 
@@ -221,7 +229,7 @@ The workflow intelligently manages the VM's power state when it runs.
 ## Troubleshooting
 
 1. Check GitHub Actions logs
-2 Check function app log stream and invocation logs
+2. Check function app log stream and invocation logs
 3. Use the serial console option under help and support section of the VM to connect and confirm the jdiscordbot.service is running and connected to your Discord server properly. See https://jmusicbot.com/troubleshooting/ for additional troubleshooting information.
 4. Confirm you are using the correct secrets in each of your Terraform Cloud workspace variables sections.
 5. Verify GitHub actions repository secrets
