@@ -64,7 +64,7 @@ jobs:
           sed -i 's/default\s*=\s*"JMusicBot-.*\.jar"/default = "'${{ steps.check_jar.outputs.new_jar_path }}'"/' variables.tf
           git add variables.tf
           git commit -m "Update jar_path in variables.tf to ${{ steps.check_jar.outputs.new_jar_path }}" || echo "No changes to commit."
-          git push https://RCFromCLE:${{ secrets.PAT_TOKEN }}@github.com/RCFromCLE/terraform-azurerm-jmusicbot-config.git || echo "No changes to push."
+          git push https://RCFromCLE:${{ secrets.PAT_TOKEN }}@github.com/RCFromCLE/terraform-azurerm-jmusicbot.git || echo "No changes to push."
 
       - name: Exit if no new release found (scheduled run)
         if: steps.check_release.outputs.new_release == 'false' && github.event_name == 'schedule'
