@@ -171,9 +171,8 @@ Now that your solution is deployed we need to setup the secrets each GitHub Acti
 
 
 ### GitHub Actions Workflows:
-
-   - deploy-function.yml: Deploys Azure Function on push to master
-   - Check for Module Update and TF Apply.yml: Daily check on updates to JMusicBotModule, if one is found deploy it to our VM.
+   - ###### File:  `deploy-function.yml` | Title - deploy-function
+   - ###### File:  `trigger-terraform-apply.yml` | Title - Check for JMusicBot Update and TF Apply
 
 #### deploy-function.yml
 - Triggers: Push to master, manual
@@ -216,9 +215,8 @@ The workflow intelligently manages the VM's power state when it runs.
  - Update Process: Applies necessary updates and configuration changes while the VM is running.
  - State Restoration: After updates, if the VM was initially off, the workflow returns it to a powered-off state.
 
-#### Monitoring and Troubleshooting
+## Troubleshooting
 
-Monitor GitHub Actions tab for workflow status. For issues:
 1. Check GitHub Actions logs
 2 Check function app log stream and invocation logs
 3. Use the serial console option under help and support section of the VM to connect and confirm the jdiscordbot.service is running and connected to your Discord server properly. See https://jmusicbot.com/troubleshooting/ for additional troubleshooting information.
