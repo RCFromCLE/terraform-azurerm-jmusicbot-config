@@ -1,6 +1,6 @@
 # terraform-azurerm-jmusicbot-config
 
-This Terraform configuration repository automates the deployment of JMusicBot on Azure using Terraform and GitHub Actions.
+This configuration repository automates the deployment of JMusicBot on Azure using Terraform and GitHub Actions.
 
 ![Deploy Function](https://github.com/RCFromCLE/terraform-azurerm-jmusicbot-config/actions/workflows/deploy-function.yml/badge.svg)
 [![Check for Module Update and TF Apply](https://github.com/RCFromCLE/terraform-azurerm-jmusicbot-config/actions/workflows/trigger-terraform-apply.yml/badge.svg)](https://github.com/RCFromCLE/terraform-azurerm-jmusicbot-config/actions/workflows/trigger-terraform-apply.yml)
