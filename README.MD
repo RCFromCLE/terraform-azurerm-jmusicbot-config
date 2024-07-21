@@ -1,8 +1,6 @@
-Here's the README.md content formatted for direct copy and paste, without any additional comments:
-
 # terraform-azurerm-jmusicbot-config
 
-This repository automates the deployment of JMusicBot on Azure using Terraform and GitHub Actions.
+This configuration repository automates the deployment of JMusicBot on Azure using Terraform and GitHub Actions.
 
 ![Deploy Function](https://github.com/RCFromCLE/terraform-azurerm-jmusicbot-config/actions/workflows/deploy-function.yml/badge.svg)
 [![Check for Module Update and TF Apply](https://github.com/RCFromCLE/terraform-azurerm-jmusicbot-config/actions/workflows/trigger-terraform-apply.yml/badge.svg)](https://github.com/RCFromCLE/terraform-azurerm-jmusicbot-config/actions/workflows/trigger-terraform-apply.yml)
@@ -25,7 +23,7 @@ This repository automates the deployment of JMusicBot on Azure using Terraform a
    cd terraform-azurerm-jmusicbot-config
 ```
 
-**Note**: You will need to do this with the jdiscord-kv-config directory as well. Once complete, You will have a total of two Terraform Cloud workspaces, one for the Azure Key Vault and one for the Azure VM. The Azure Key Vault workspace will be created first and the Azure VM workspace will be created second. The Azure VM workspace will be dependent on the Azure Key Vault workspace and should be configured with a run trigger to run after the Azure Key Vault workspace.
+**Note**: You will need to repeat steps 3,4, and 5 for the jdiscord-kv-config directory too. Once complete, You will have a total of two Terraform Cloud workspaces, one for the Azure Key Vault and one for the Azure VM. The Azure Key Vault workspace will be created first and the Azure primary workspace will be created second. The Azure primary workspace will be dependent on the Azure Key Vault workspace and should be configured with a run trigger to run after the Azure Key Vault workspace.
 
 2. Create Azure Service Principal:
 
@@ -136,7 +134,7 @@ You can now trigger a run by pushing a change to the main branch of the keyvault
 
 #### Check for Module Update and TF Apply.yml
 
-**Note**: If you manually trigger this workflow, it will run regardless of if there is an update to jmusicbot, scheduled runs will only run if there is an update to jmusicbot.
+**Note**: If you manually trigger this workflow, it will run regardless of if there is an update to JMusicBot, scheduled runs will only run if there is an update.
 - Triggers: Daily at 5:30 AM EST, manual
 - Steps: 
   - Check for updates to the terraform-azurerm-jmusicbot module and JMusicBot jar
