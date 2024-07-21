@@ -1,4 +1,4 @@
-name: Check for Module Update and TF Apply
+name: Check for JMusicBot Update and TF Apply
 
 on:
   schedule:
