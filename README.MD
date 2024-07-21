@@ -23,12 +23,13 @@ This configuration repository automates the deployment of JMusicBot on Azure usi
    cd terraform-azurerm-jmusicbot-config
 ```
 
-**Note**: You will need to repeat steps 3, 4, and 5 for the `jdiscord-kv-config` directory as well. 
+**Note**: Start the below steps with the jdiscord-kv-config directory and then do the same with the root configuration.
 
 ### Key Points:
  **Two Terraform Cloud Workspaces**: After completing these steps, you will have two Terraform Cloud workspaces:
    - **Azure Key Vault Workspace**: Created first.
    - **Azure Primary Workspace**: Created second and dependent on the Azure Key Vault workspace.
+   - **
 
 **Run Trigger Configuration**: Configure the Azure primary workspace with a run trigger to execute after the Azure Key Vault workspace completes its run.
 
@@ -57,6 +58,19 @@ This configuration repository automates the deployment of JMusicBot on Azure usi
 
 Fill in `terraform.tfvars` with your Azure and Discord details and run `terraform init`.
 
+#### Key Vault Workspace (`terraform.tfvars`):
+
+```hcl
+subscription_id = ""
+location = "East US"
+kv_resource_group_name = "jdiscord-kv-rg"
+key_vault_name = "jdiscord-kv"
+discord_bot_token = ""
+discord_bot_owner = ""
+discord_bot_prefix = "!"
+additional_access_policy_object_id = ""
+```
+
 #### Primary Workspace (`terraform.tfvars`):
 
 ```hcl
@@ -72,20 +86,7 @@ general_channel_id  = ""
 music_channel_id    = ""    
 ```
 
-#### Key Vault Workspace (`terraform.tfvars`):
-
-```hcl
-subscription_id = ""
-location = "East US"
-kv_resource_group_name = "jdiscord-kv-rg"
-key_vault_name = "jdiscord-kv"
-discord_bot_token = ""
-discord_bot_owner = ""
-discord_bot_prefix = "!"
-additional_access_policy_object_id = ""
-```
-
-**Note**: You can use `set_workspace_variable.ps1` to automatically create variables in the Terraform Cloud Workspace. Simply fill out your Terraform API token, org name, and workspace name, place the script in the same directory as `terraform.tfvars`, and run the script.
+**Note**: You can use `set_workspace_variable.ps1` to automatically create variables in the Terraform Cloud Workspace from your local variables. Simply fill out your Terraform API token, org name, and workspace name, place the script in the same directory as `terraform.tfvars`, and run the script.
 
 ### 5. Configure Terraform Cloud Workspaces
 
@@ -134,7 +135,7 @@ After completion, you should have a fully deployed JMusicBot. Verify the deploym
 -  Confirm bot responds to "start music bot" within 5 minutes and the bot joins within 6 minutes.
 
 ```
-7.  ### Setup GitHub Actions Secrets for Workflows
+10.  ### Setup GitHub Actions Secrets for Workflows
 
 - **`AZURE_CREDENTIALS`**: Azure Service Principal credentials
   - [How to create and configure Azure Service Principal credentials](link-to-instructions)
@@ -156,11 +157,10 @@ After completion, you should have a fully deployed JMusicBot. Verify the deploym
   - [How to create a Terraform Cloud workspace](link-to-instructions)
 
 
-7.  GitHub Actions Workflows:
-   - deploy-function.yml: Deploys Azure Function on push to master
-   - Check for Module Update and TF Apply.yml: Daily check for updates, applies Terraform changes
+### GitHub Actions Workflows:
 
-### GitHub Actions Details
+   - deploy-function.yml: Deploys Azure Function on push to master
+   - Check for Module Update and TF Apply.yml: Daily check for updates to
 
 #### deploy-function.yml
 - Triggers: Push to master, manual
@@ -196,20 +196,22 @@ Checks for new module and jar releases, updates, configurations, and triggers Te
 
 #### VM Management
 
-The workflow intelligently manages the VM's power state during updates:
-1. Pre-update Check: Verifies the VM's current power state.
-2. Activation: If the VM is off, the workflow starts before applying changes.
-3. Update Process: Applies necessary updates and configuration changes while the VM is running.
-4. State Restoration: After updates, if the VM was initially off, the workflow returns it to a powered-off state.
-5. Always-On Option: For scenarios requiring constant uptime, the workflow can be configured to leave the VM running.
+The workflow intelligently manages the VM's power state when it runs.
+
+ - Pre-update Check: Verifies the VM's current power state.
+ - Activation: If the VM is off, the workflow starts before applying changes.
+ - Update Process: Applies necessary updates and configuration changes while the VM is running.
+ - State Restoration: After updates, if the VM was initially off, the workflow returns it to a powered-off state.
 
 #### Monitoring and Troubleshooting
 
 Monitor GitHub Actions tab for workflow status. For issues:
 1. Check GitHub Actions logs
 2 Check function app log stream and invocation logs
-3. Verify repository secrets
-4. Confirm Azure credentials and permissions
-5. Review Terraform Cloud workspace runs
+3. Use the serial console option under help and support section of the VM to connect and confirm the jdiscordbot.service is running and connected to your Discord server properly. See https://jmusicbot.com/troubleshooting/ for additional troubleshooting information.
+4. Confirm you are using the correct secrets in each of your Terraform Cloud workspace variables sections.
+5. Verify GitHub actions repository secrets
+6. Confirm Azure credentials and permissions
+7. Review Terraform Cloud workspace runs
 
 Open an issue in this repository or the terraform-azurerm-jmusicbot repository for persistent problems.
