@@ -184,16 +184,6 @@ Once the Key Vault workspace has completed, the primary workspace will automatic
 
 You now need to complete step 10 and setup the secrets for your GitHub Action. Once you have the secrets in place run the deploy-function workflow.
 
-### Verification
-
-After completion, you should have a fully deployed JMusicBot. Verify the deployment by:
--  Checking the Azure VM
--  Confirming the function app is running
--  Ensuring the bot is online in Discord and can play music
--  Confirming the bot joins when you have at least one user in the music channel
--  Confirm bot responds to "start music bot" within 5 minutes and the bot joins within 6 minutes.
-
-
 ### Updating Secrets After Deployment
 
 To update the Discord token or your Azure credentials, follow these steps:
@@ -219,8 +209,19 @@ Now that your solution is deployed we need to setup the secrets each GitHub Acti
 - **`TF_CLOUD_ORGANIZATION`**: Terraform Cloud organization name
    - [How to set up your Terraform Cloud organization](https://app.terraform.io/public/signup/account?utm_source=learn&ajs_aid=18f0a77a-627a-43ee-a824-d34056b25463&product_intent=terraform)
 - **`TF_WORKSPACE_NAME`**: Terraform Cloud workspace name
-   - [How to create a Terraform Cloud workspace](https://developer.hashicorp.com/terraform/tutorials/cloud-get-started/cloud-workspace-create)
+   - [How to create a Terraform Cloud workspace](https://developer.hashicorp.com/terraform/tutorials/cloud-get-started/cloud-workspace-create)### Verification
 
+After completion, you should have a fully deployed JMusicBot. 
+
+### Verification
+
+Verify the deployment by:
+
+-  Checking the Azure VM
+-  Confirming the function app is running
+-  Ensuring the bot is online in Discord and can play music
+-  Confirming the bot joins when you have at least one user in the music channel
+-  Confirm bot responds to "start music bot" within 5 minutes and the bot joins within 6 minutes.
 
 ### GitHub Actions Workflows:
    - ###### File:  `deploy-function.yml` | Title - deploy-function | 
