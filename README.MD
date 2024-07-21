@@ -151,7 +151,6 @@ After completion, you should have a fully deployed JMusicBot. Verify the deploym
 
 Now that your solution is deployed we need to setup the secrets each GitHub Action workflow will require. This is so we can keep the MusicBot running the latest version as sometimes only the latest version is the working version and manually performing updates can suck.
 
-```
 10.  ### Setup GitHub Actions Secrets for Workflows
 
 - **`AZURE_CREDENTIALS`**: Azure Service Principal credentials
