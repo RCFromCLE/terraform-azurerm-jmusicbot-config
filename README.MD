@@ -37,7 +37,7 @@ This configuration repository automates the deployment of JMusicBot on Azure usi
    az ad sp create-for-rbac --name "tf-jdiscord-gh-update-pipeline" --role contributor --scopes /subscriptions/<your-subscription-id>
 ```
 
-3. Run terraform login and sign in to your TF Cloud organization. Set each main.tf's 
+3. Run terraform login and sign in to your TF Cloud organization. Set each main.tf's terraform block to contain the correct organization and workspace information from your TF Cloud org.
 
 **Two Terraform Cloud Workspaces**
    - **Azure Key Vault Workspace**: Created first, contains secrets needed in Azure to deploy and run JMusicBot.
@@ -71,7 +71,7 @@ This configuration repository automates the deployment of JMusicBot on Azure usi
 
 ### 4. Configure Terraform Variables
 
-Fill in `terraform.tfvars` with your Azure and Discord details and run `terraform init`.
+Fill in `terraform.tfvars` with your Azure and Discord details and run `terraform init` for each workspace.
 
 #### Key Vault Workspace (`terraform.tfvars`):
 
@@ -107,6 +107,8 @@ music_channel_id    = ""
 
 After running `terraform init` for both the Key Vault and primary configurations, verify that you can see the workspaces in Terraform Cloud. They will not have a run status until after the first run.
 
+![Terraform Cloud Workspaces](images/image-1.png)
+
 6. Create a variable set with the following environment variables:
    - `ARM_CLIENT_ID`
    - `ARM_CLIENT_SECRET`
@@ -116,8 +118,6 @@ After running `terraform init` for both the Key Vault and primary configurations
 7. Assign this variable set to both workspaces.
 
 At this point, you should have each workspace set up with the required workspace and environment variables.
-
-![Terraform Cloud Workspaces](images/image-1.png)
 
 ![Terraform Cloud Variables](images/image-4.png)
 
@@ -149,33 +149,32 @@ After completion, you should have a fully deployed JMusicBot. Verify the deploym
 -  Confirming the bot joins when you have at least one user in the music channel
 -  Confirm bot responds to "start music bot" within 5 minutes and the bot joins within 6 minutes.
 
+Now that your solution is deployed we need to setup the secrets each GitHub Action workflow will require. This is so we can keep the MusicBot running the latest version as sometimes only the latest version is the working version and manually performing updates can suck.
+
 ```
 10.  ### Setup GitHub Actions Secrets for Workflows
 
 - **`AZURE_CREDENTIALS`**: Azure Service Principal credentials
-  - [How to create and configure Azure Service Principal credentials](link-to-instructions)
+  - [How to create and configure Azure Service Principal credentials](https://learn.microsoft.com/en-us/entra/identity-platform/howto-create-service-principal-portal)
 - **`AZURE_FUNCTIONAPP_PUBLISH_PROFILE`**: Azure Function App publish profile
-  - [How to get the Azure Function App publish profile](link-to-instructions)
+  - [How to get the Azure Function App publish profile](https://learn.microsoft.com/en-us/visualstudio/azure/how-to-get-publish-profile-from-azure-app-service?view=vs-2022)
 - **`AZURE_FUNCTION_APP_NAME`**: Azure Function App name
-  - [How to find your Azure Function App name](link-to-instructions)
 - **`AZURE_RESOURCE_GROUP`**: Azure Resource Group name
-  - [How to find your Azure Resource Group name](link-to-instructions)
 - **`AZURE_VM_NAME`**: Azure VM name
-  - [How to find your Azure VM name](link-to-instructions)
 - **`PAT_TOKEN`**: GitHub Personal Access Token
-  - [How to create a GitHub Personal Access Token](link-to-instructions)
+   - [How to create a GitHub Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-personal-access-token-classic)
 - **`TF_API_TOKEN`**: Terraform Cloud API Token
-  - [How to create a Terraform Cloud API Token](link-to-instructions)
+   - [How to create a Terraform Cloud API Token](https://aws-quickstart.github.io/workshop-terraform-modules/40_setup_cloud9_ide/43_setup_tfc_api_token.html)
 - **`TF_CLOUD_ORGANIZATION`**: Terraform Cloud organization name
-  - [How to set up your Terraform Cloud organization](link-to-instructions)
+   - [How to set up your Terraform Cloud organization](https://app.terraform.io/public/signup/account?utm_source=learn&ajs_aid=18f0a77a-627a-43ee-a824-d34056b25463&product_intent=terraform)
 - **`TF_WORKSPACE_NAME`**: Terraform Cloud workspace name
-  - [How to create a Terraform Cloud workspace](link-to-instructions)
+   - [How to create a Terraform Cloud workspace](https://developer.hashicorp.com/terraform/tutorials/cloud-get-started/cloud-workspace-create)
 
 
 ### GitHub Actions Workflows:
 
    - deploy-function.yml: Deploys Azure Function on push to master
-   - Check for Module Update and TF Apply.yml: Daily check for updates to
+   - Check for Module Update and TF Apply.yml: Daily check on updates to JMusicBotModule, if one is found deploy it to our VM.
 
 #### deploy-function.yml
 - Triggers: Push to master, manual
