@@ -271,4 +271,4 @@ The workflow intelligently manages the VM's power state when it runs.
 
 See https://jmusicbot.com/troubleshooting/ for additional troubleshooting information.
 
-Open an issue in this repository or the terraform-azurerm-jmusicbot repository for persistent problems.
+Open an issue in this repository or the [`terraform-azurerm-jmusicbot`](https://github.com/RCFromCLE/terraform-azurerm-jmusicbot) for persistent problems.
