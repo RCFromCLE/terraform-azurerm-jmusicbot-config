@@ -23,7 +23,7 @@ This configuration repository automates the deployment of JMusicBot on Azure usi
    cd terraform-azurerm-jmusicbot-config
 ```
 
-**Note**: You will need to do this with the jdiscord-kv-config directory as well. Once complete, You will have a total of two Terraform Cloud workspaces, one for the Azure Key Vault and one for the Azure VM. The Azure Key Vault workspace will be created first and the Azure VM workspace will be created second. The Azure VM workspace will be dependent on the Azure Key Vault workspace and should be configured with a run trigger to run after the Azure Key Vault workspace.
+**Note**: You will need to repeat these steps for the jdiscord-kv-config directory too. Once complete, You will have a total of two Terraform Cloud workspaces, one for the Azure Key Vault and one for the Azure VM. The Azure Key Vault workspace will be created first and the Azure VM workspace will be created second. The Azure VM workspace will be dependent on the Azure Key Vault workspace and should be configured with a run trigger to run after the Azure Key Vault workspace.
 
 2. Create Azure Service Principal:
 
