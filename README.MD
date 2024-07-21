@@ -132,7 +132,7 @@ module "jmusicbot" {
   os_disk_name       = var.os_disk_name
   vm_admin_username  = var.vm_admin_username
 }
-
+```
 **Note**: You can use `set_workspace_variable.ps1` to automatically create variables in the Terraform Cloud Workspace from your local variables. Simply fill out your Terraform API token, org name, and workspace name, place the script in the same directory as `terraform.tfvars`, and run the script.
 
 5. Configure Terraform Cloud Workspaces
@@ -186,8 +186,8 @@ After completion, you should have a fully deployed JMusicBot. Verify the deploym
 
 To update the Discord token or your Azure credentials, follow these steps:
 
-1. Go to Terraform Cloud and update the workspace variables for the key vault workspace.
-2. Trigger a run in the key vault workspace. This will update the secrets in  JMusicBot project's Key Vault. The updated secrets will be referenced in the primary workspace. The primary workspace will trigger a run and update the Azure resources.
+ - Go to Terraform Cloud and update the workspace variables for the key vault workspace.
+ - Trigger a run in the key vault workspace. This will update the secrets in  JMusicBot project's Key Vault. The updated secrets will be referenced in the primary workspace. The primary workspace will trigger a run and update the Azure resources.
 
 Now that your solution is deployed we need to setup the secrets each GitHub Action workflow will require. This is so we can keep the MusicBot running the latest version as sometimes only the latest version is the working version and manually performing updates can suck.
 
