@@ -72,7 +72,7 @@ This configuration repository automates the deployment of JMusicBot on Azure usi
 
 Fill in `terraform.tfvars` with your Azure and Discord details and run `terraform init` for each workspace.
 
-#### Key Vault Workspace (`terraform.tfvars`):
+#### Key Vault Workspace - jdiscord-kv-config - (`terraform.tfvars` and `main.tf`):
 
 ```hcl
 subscription_id = ""
@@ -84,8 +84,8 @@ discord_bot_owner = ""
 discord_bot_prefix = "!"
 additional_access_policy_object_id = ""
 ```
-
-#### Primary Workspace (`terraform.tfvars`):
+![main.tf of kv workspace](images/maintf_kv_config.png)
+#### Primary Workspace - root directory - (`terraform.tfvars` and `main.tf`):
 
 ```hcl
 sub                 = ""
@@ -99,6 +99,39 @@ discord_bot_token   = ""
 general_channel_id  = ""
 music_channel_id    = ""    
 ```
+```hcl
+module "jmusicbot" {
+  source  = "RCFromCLE/jmusicbot/azure"
+  version = "v2.0.0"
+
+  # required variables
+  azure_tenant_id     = var.azure_tenant_id
+  sub                 = var.sub
+  discord_bot_token   = var.discord_bot_token
+  discord_bot_owner   = var.discord_bot_owner
+  general_channel_id  = var.general_channel_id
+  music_channel_id    = var.music_channel_id
+  afk_channel_id      = var.afk_channel_id
+  azure_client_id     = var.azure_client_id
+  azure_client_secret = var.azure_client_secret
+
+  # optional variables
+  rg                 = var.rg
+  rg_loc             = var.rg_loc
+  net                = var.net
+  subnet             = var.subnet
+  pub_ip             = var.pub_ip
+  nic_name           = var.nic_name
+  nsg                = var.nsg
+  vm_name            = var.vm_name
+  vm_size            = var.vm_size
+  vm_image_publisher = var.vm_image_publisher
+  vm_image_offer     = var.vm_image_offer
+  vm_image_sku       = var.vm_image_sku
+  vm_image_version   = var.vm_image_version
+  os_disk_name       = var.os_disk_name
+  vm_admin_username  = var.vm_admin_username
+}
 
 **Note**: You can use `set_workspace_variable.ps1` to automatically create variables in the Terraform Cloud Workspace from your local variables. Simply fill out your Terraform API token, org name, and workspace name, place the script in the same directory as `terraform.tfvars`, and run the script.
 
@@ -106,7 +139,7 @@ music_channel_id    = ""
 
 After running `terraform init` for both the Key Vault and primary configurations, verify that you can see the workspaces in Terraform Cloud. They will not have a run status until after the first run.
 
-![Terraform Cloud Workspaces](images/image-1.png)
+![Terraform Cloud Workspaces](images/tf_cloud_workspaces.png)
 
 6. Create a variable set with the following environment variables:
    - `ARM_CLIENT_ID`
@@ -156,7 +189,7 @@ To update the Discord token or your Azure credentials, follow these steps:
 1. Go to Terraform Cloud and update the workspace variables for the key vault workspace.
 2. Trigger a run in the key vault workspace. This will update the secrets in  JMusicBot project's Key Vault. The updated secrets will be referenced in the primary workspace. The primary workspace will trigger a run and update the Azure resources.
 
-Now that your solution is deployed we need to setup the secrets each GitHub Action workflow will require. This is so we can keep JMusicBot running the latest version as sometimes only the latest version is the working version and manually performing updates can suck.
+Now that your solution is deployed we need to setup the secrets each GitHub Action workflow will require. This is so we can keep the MusicBot running the latest version as sometimes only the latest version is the working version and manually performing updates can suck.
 
 10.  ### Setup GitHub Actions Secrets for Workflows
 
