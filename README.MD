@@ -22,31 +22,35 @@ This configuration repository automates the deployment of JMusicBot on Azure usi
 
 ### Setup Instructions
 
-1. Fork and clone this repository:
+1. Launch VS Code and open the PowerShell Terminal. Fork and clone this repository:
 
-```bash
+```powershell
    git clone https://github.com/<your-username>/terraform-azurerm-jmusicbot-config.git
-   cd terraform-azurerm-jmusicbot-config
+   cd terraform-azurerm-jmusicbot-config/jdiscord-kv-config
 ```
 
-**Note**: Start the below steps with the jdiscord-kv-config directory and then do the same with the root configuration.
+**Note**: We are start.
 
 ### Key Points:
- **Two Terraform Cloud Workspaces**: After completing these steps, you will have two Terraform Cloud workspaces:
+ **Two Terraform Cloud Workspaces**: After completing all steps in this guide, you will have two Terraform Cloud workspaces:
    - **Azure Key Vault Workspace**: Created first.
    - **Azure Primary Workspace**: Created second and dependent on the Azure Key Vault workspace.
    - **
 
 **Run Trigger Configuration**: Configure the Azure primary workspace with a run trigger to execute after the Azure Key Vault workspace completes its run.
 
-2. Create Azure Service Principal:
+2. Create Azure Service Principal. Be sure to take note of the cliend_id upon creation. Open the Azure portal and create a secret for this registered application (SPN), hold on to this secret we will use it soon. 
 
 ```powershell
    az login
    az ad sp create-for-rbac --name "tf-jdiscord-gh-update-pipeline" --role contributor --scopes /subscriptions/<your-subscription-id>
 ```
 
-3.  Update main.tf with your Terraform Cloud details for borth workspaces. Below is an example of the main.tf's terraform cloud block for the primary workspace. You will need to repeat this process for the Key Vault workspace as well.
+3. Run terraform login and sign in to your TF Cloud organization. Set each main.tf's 
+
+```powershell
+ terraform login
+```
 
 ```hcl
    terraform {
