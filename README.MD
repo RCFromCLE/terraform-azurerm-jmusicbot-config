@@ -27,9 +27,6 @@ This configuration repository automates the deployment of JMusicBot on Azure usi
    git clone https://github.com/<your-username>/terraform-azurerm-jmusicbot-config.git
    cd terraform-azurerm-jmusicbot-config/jdiscord-kv-config
 ```
- **Two Terraform Cloud Workspaces**: After completing all steps in this guide, you will have two Terraform Cloud workspaces:
-   - **Azure Key Vault Workspace**: Created first, contains secrets needed in Azure to deploy and run JMusicBot.
-   - **Azure Primary Workspace**: Created second and dependent on the Azure Key Vault workspace will deploy JMusicBot and its supporting resources.
 
 **Run Trigger Configuration**: Configure the Azure primary workspace with a run trigger to execute after the Azure Key Vault workspace completes its run.
 
@@ -41,6 +38,10 @@ This configuration repository automates the deployment of JMusicBot on Azure usi
 ```
 
 3. Run terraform login and sign in to your TF Cloud organization. Set each main.tf's 
+
+**Two Terraform Cloud Workspaces**
+   - **Azure Key Vault Workspace**: Created first, contains secrets needed in Azure to deploy and run JMusicBot.
+   - **Azure Primary Workspace**: Created second and dependent on the Azure Key Vault workspace will deploy JMusicBot and its supporting resources.
 
 ```powershell
  terraform login
