@@ -127,7 +127,7 @@ You can now trigger a run by pushing a change to the main branch of the keyvault
    - deploy-function.yml: Deploys Azure Function on push to master
    - Check for Module Update and TF Apply.yml: Daily check for updates, applies Terraform changes
 
-### Workflow Details
+### GitHub Actions Details
 
 #### deploy-function.yml
 - Triggers: Push to master, manual
@@ -135,7 +135,9 @@ You can now trigger a run by pushing a change to the main branch of the keyvault
 - Steps: Checkout code, Setup Node.js, Install dependencies, Build and test, Deploy to Azure Functions
 
 #### Check for Module Update and TF Apply.yml
-- Triggers: Daily at 5:30 AM UTC, manual
+
+**Note**: If you manually trigger this workflow, it will run regardless of if there is an update to jmusicbot, scheduled runs will only run if there is an update to jmusicbot.
+- Triggers: Daily at 5:30 AM EST, manual
 - Steps: 
   - Check for updates to the terraform-azurerm-jmusicbot module and JMusicBot jar
   - Update configurations
