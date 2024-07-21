@@ -120,21 +120,21 @@ At this point, you should have each workspace set up with the required workspace
 You can now trigger a run by:
 
 - Pushing a change to the main branch of the Key Vault config directory, or
-- Manually running a plan and apply in the Key Vault workspace through the Terraform Cloud UI
+- Manually run a plan and apply in the Key Vault workspace through the Terraform Cloud UI
 
 Once the Key Vault workspace has completed, the primary workspace will automatically trigger and run.
 
 ### Verification
 
 After completion, you should have a fully deployed JMusicBot. Verify the deployment by:
-1. Checking the Azure VM
-2. Confirming the function app is running
-3. Ensuring the bot is online in Discord and can play music
-4. Confirming the bot joins when you have at least one user in the music channel
-5. Confirm bot responds to "start music bot" within 5 minutes and the bot joins within 6 minutes.
+-  Checking the Azure VM
+-  Confirming the function app is running
+-  Ensuring the bot is online in Discord and can play music
+-  Confirming the bot joins when you have at least one user in the music channel
+-  Confirm bot responds to "start music bot" within 5 minutes and the bot joins within 6 minutes.
 
 ```
-6.  ### Setup GitHub Actions Secrets for Workflows
+7.  ### Setup GitHub Actions Secrets for Workflows
 
 - **`AZURE_CREDENTIALS`**: Azure Service Principal credentials
   - [How to create and configure Azure Service Principal credentials](link-to-instructions)
@@ -207,11 +207,9 @@ The workflow intelligently manages the VM's power state during updates:
 
 Monitor GitHub Actions tab for workflow status. For issues:
 1. Check GitHub Actions logs
-2. Verify repository secrets
-3. Confirm Azure credentials and permissions
-4. Review Terraform Cloud workspace runs
+2 Check function app log stream and invocation logs
+3. Verify repository secrets
+4. Confirm Azure credentials and permissions
+5. Review Terraform Cloud workspace runs
 
-Open an issue in this repository for persistent problems.
-
-![GitHub Actions](https://github.com/RCFromCLE/terraform-azurerm-jmusicbot-config/raw/master/images/github-actions.png)
-```
+Open an issue in this repository or the terraform-azurerm-jmusicbot repository for persistent problems.
