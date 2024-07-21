@@ -137,7 +137,9 @@ You can now trigger a run by:
 - Pushing a change to the main branch of the Key Vault config directory, or
 - Manually run a plan and apply in the Key Vault workspace through the Terraform Cloud UI
 
-
+![Key Vault run trigger](images/kv_run_trigger.png)
+![Key Vault Workspace Apply](images/kv_workspace_apply.png)
+![Primary Workspace run triggered](images/primary_workspace_triggered.png)
 
 Once the Key Vault workspace has completed, the primary workspace will automatically trigger and run.
 
