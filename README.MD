@@ -5,7 +5,6 @@ This configuration repository automates the deployment of JMusicBot on Azure usi
 ![Deploy Function](https://github.com/RCFromCLE/terraform-azurerm-jmusicbot-config/actions/workflows/deploy-function.yml/badge.svg)
 [![Check for Module Update and TF Apply](https://github.com/RCFromCLE/terraform-azurerm-jmusicbot-config/actions/workflows/trigger-terraform-apply.yml/badge.svg)](https://github.com/RCFromCLE/terraform-azurerm-jmusicbot-config/actions/workflows/trigger-terraform-apply.yml)
 
-
 ### Prerequisites
 
 - Azure subscription
@@ -28,14 +27,9 @@ This configuration repository automates the deployment of JMusicBot on Azure usi
    git clone https://github.com/<your-username>/terraform-azurerm-jmusicbot-config.git
    cd terraform-azurerm-jmusicbot-config/jdiscord-kv-config
 ```
-
-**Note**: We are start.
-
-### Key Points:
  **Two Terraform Cloud Workspaces**: After completing all steps in this guide, you will have two Terraform Cloud workspaces:
-   - **Azure Key Vault Workspace**: Created first.
-   - **Azure Primary Workspace**: Created second and dependent on the Azure Key Vault workspace.
-   - **
+   - **Azure Key Vault Workspace**: Created first, contains secrets needed in Azure to deploy and run JMusicBot.
+   - **Azure Primary Workspace**: Created second and dependent on the Azure Key Vault workspace will deploy JMusicBot and its supporting resources.
 
 **Run Trigger Configuration**: Configure the Azure primary workspace with a run trigger to execute after the Azure Key Vault workspace completes its run.
 
