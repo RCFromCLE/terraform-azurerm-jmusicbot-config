@@ -17,7 +17,7 @@ This configuration repository automates the deployment of JMusicBot on Azure usi
 - GitHub account
 - Terraform Cloud account and Organization
 - Azure CLI installed locally
-- Discord Application (Bot) with necessary permissions and token
+- [Discord Application (Bot) with necessary permissions and token](https://jmusicbot.com/getting-a-bot-token/) 
 
 ## Setup Instructions
 
