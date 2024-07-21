@@ -23,7 +23,14 @@ This configuration repository automates the deployment of JMusicBot on Azure usi
    cd terraform-azurerm-jmusicbot-config
 ```
 
-**Note**: You will need to repeat steps 3,4, and 5 for the jdiscord-kv-config directory too. Once complete, You will have a total of two Terraform Cloud workspaces, one for the Azure Key Vault and one for the Azure VM. The Azure Key Vault workspace will be created first and the Azure primary workspace will be created second. The Azure primary workspace will be dependent on the Azure Key Vault workspace and should be configured with a run trigger to run after the Azure Key Vault workspace.
+**Note**: You will need to repeat steps 3, 4, and 5 for the `jdiscord-kv-config` directory as well. 
+
+### Key Points:
+ **Two Terraform Cloud Workspaces**: After completing these steps, you will have two Terraform Cloud workspaces:
+   - **Azure Key Vault Workspace**: Created first.
+   - **Azure Primary Workspace**: Created second and dependent on the Azure Key Vault workspace.
+
+**Run Trigger Configuration**: Configure the Azure primary workspace with a run trigger to execute after the Azure Key Vault workspace completes its run.
 
 2. Create Azure Service Principal:
 
@@ -44,9 +51,13 @@ This configuration repository automates the deployment of JMusicBot on Azure usi
      }
    }
 ```
-4. Fill in terraform.tfvars with your Azure and Discord details and run terraform init. 
+## Setup Instructions
 
-terraform.tfvars for primary workspace:
+### 4. Configure Terraform Variables
+
+Fill in `terraform.tfvars` with your Azure and Discord details and run `terraform init`.
+
+#### Primary Workspace (`terraform.tfvars`):
 
 ```hcl
 sub                 = ""
@@ -61,7 +72,7 @@ general_channel_id  = ""
 music_channel_id    = ""    
 ```
 
-terraform.tfvars for Key Vault workspace:
+#### Key Vault Workspace (`terraform.tfvars`):
 
 ```hcl
 subscription_id = ""
@@ -73,41 +84,56 @@ discord_bot_owner = ""
 discord_bot_prefix = "!"
 additional_access_policy_object_id = ""
 ```
-You can use **set_workspace_variable.ps1** to automagically create variables in the TF Cloud Workspace to save time. Simply fill out your Terraform API token, place the script in the same directory as terraform.tfvars and run the script.
 
-5. **Configuring the Terraform Cloud workspaces**:
+**Note**: You can use `set_workspace_variable.ps1` to automatically create variables in the Terraform Cloud Workspace. Simply fill out your Terraform API token, org name, and workspace name, place the script in the same directory as `terraform.tfvars`, and run the script.
 
-Verify after running terraform init for the kv and primary config you can see the workspaces in Terraform Cloud. They will not have a run status as this example until after the first run. 
+### 5. Configure Terraform Cloud Workspaces
 
-   - Create a variable set with 
-   ***ARM_CLIENT_ID*** 
-   ***ARM_CLIENT_SECRET*** 
-   ***ARM_SUBSCRIPTION_ID***
-   ***ARM_TENANT_ID*** 
-   - Set each  as env variables
-   - Assign this variable set to both workspaces
+After running `terraform init` for both the Key Vault and primary configurations, verify that you can see the workspaces in Terraform Cloud. They will not have a run status until after the first run.
 
-   At this point, you should have each workspace setup with the workspace and environment variables required.
-![alt text](image.png)
-   - Create a variable set with 
-   ***ARM_CLIENT_ID*** 
-   ***ARM_CLIENT_SECRET*** 
-   ***ARM_SUBSCRIPTION_ID***
-   ***ARM_TENANT_ID*** 
-   - Set each  as env variables
-   - Assign this variable set to both workspaces
+6. Create a variable set with the following environment variables:
+   - `ARM_CLIENT_ID`
+   - `ARM_CLIENT_SECRET`
+   - `ARM_SUBSCRIPTION_ID`
+   - `ARM_TENANT_ID`
 
-   At this point, you should have each workspace setup with the workspace and environment variables required.
+7. Assign this variable set to both workspaces.
 
-![alt text](images/image-1.png)
-![alt text](images/image-4.png)
-For each workspace, enable VCS integration and select your GitHub config repository, be sure to set the Key Vault workspace to use the correct working directory, jdiscord-kv-config.
-![alt text](images/image-3.png)
-In the primary workspace, set the run trigger to run after the Key Vault workspace.
-![alt text](images/image-2.png)
+At this point, you should have each workspace set up with the required workspace and environment variables.
 
-You can now trigger a run by pushing a change to the main branch of the Key Vault config directory or by manually running a plan and apply in the Key Vault workspace through the Terraform Cloud UI. Once the Key Vault workspace has been completed, the primary workspace will automatically trigger and run. Once completed, you should have a fully deployed JMusicBot, verify the bot is running by checking the Azure VM, function app, and that the bot is online in Discord and can play music.
+![Terraform Cloud Workspaces](images/image-1.png)
 
+![Terraform Cloud Variables](images/image-4.png)
+
+8. Enable VCS integration for each workspace:
+   - Select your GitHub config repository
+   - For the Key Vault workspace, set the correct working directory: `jdiscord-kv-config`
+
+![VCS Integration](images/image-3.png)
+
+9. In the primary workspace, set the run trigger to execute after the Key Vault workspace completes.
+
+![Run Trigger](images/image-2.png)
+
+### Deployment
+
+You can now trigger a run by:
+
+- Pushing a change to the main branch of the Key Vault config directory, or
+- Manually running a plan and apply in the Key Vault workspace through the Terraform Cloud UI
+
+Once the Key Vault workspace has completed, the primary workspace will automatically trigger and run.
+
+### Verification
+
+After completion, you should have a fully deployed JMusicBot. Verify the deployment by:
+1. Checking the Azure VM
+2. Confirming the function app is running
+3. Ensuring the bot is online in Discord and can play music
+4. Confirming the bot joins when you have at least one user in the music channel
+5. Confirm bot responds to "start music bot" within 5 minutes and the bot joins within 6 minutes.
+
+```
 6.  ### Setup GitHub Actions Secrets for Workflows
 
 - **`AZURE_CREDENTIALS`**: Azure Service Principal credentials
