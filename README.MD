@@ -1,9 +1,20 @@
 # terraform-azurerm-jmusicbot-config
 
+## Introduction
+![Terraform, GitHub, Azure, logo](images/tf-gh-azure.png)
+
+
 This configuration repository automates the deployment of JMusicBot on Azure using Terraform and GitHub Actions.
 
 ![Deploy Function](https://github.com/RCFromCLE/terraform-azurerm-jmusicbot-config/actions/workflows/deploy-function.yml/badge.svg)
 [![Check for Module Update and TF Apply](https://github.com/RCFromCLE/terraform-azurerm-jmusicbot-config/actions/workflows/trigger-terraform-apply.yml/badge.svg)](https://github.com/RCFromCLE/terraform-azurerm-jmusicbot-config/actions/workflows/trigger-terraform-apply.yml)
+
+### What is JMusicBot?
+
+![JMusicBot Logo](images/jmusicbot.png)
+
+JMusicBot is an open-source Discord music bot that plays music in voice channels from various sources, primarily YouTube. It is a Java application that requires a Linux or Windows machine to run. The bot is controlled via commands in a Discord text channel. For more information, see the [JMusicBot Wiki](https://jmusicbot.com/).
+
 
 ### Prerequisites
 
