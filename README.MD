@@ -38,8 +38,6 @@ JMusicBot is an open-source Discord music bot that plays music in voice channels
    cd terraform-azurerm-jmusicbot-config/jdiscord-kv-config
 ```
 
-**Run Trigger Configuration**: Configure the Azure primary workspace with a run trigger to execute after the Azure Key Vault workspace completes its run.
-
 2. Create Azure Service Principal. Be sure to take note of the cliend_id upon creation. Open the Azure portal and create a secret for this registered application (SPN), hold on to this secret we will use it soon. 
 
 ```powershell
@@ -170,6 +168,8 @@ At this point, you should have each workspace set up with the required workspace
 ![VCS Integration](images/image-3.png)
 
 9. In the primary workspace, set the run trigger to execute after the Key Vault workspace completes.
+
+**Run Trigger Configuration**: Configure the Azure primary workspace with a run trigger to execute after the Azure Key Vault workspace completes its run.
 
 ![Run Trigger](images/image-2.png)
 
