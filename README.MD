@@ -174,14 +174,14 @@ Now that your solution is deployed we need to setup the secrets each GitHub Acti
    - ###### File:  `deploy-function.yml` | Title - deploy-function
    - ###### File:  `trigger-terraform-apply.yml` | Title - Check for JMusicBot Update and TF Apply
 
-#### deploy-function.yml
+#### deploy-function
+**Note**: If you manually run this it will deploy the function within the function/jdiscord-function directory. If you 
 - Triggers: Push to master, manual
 - Environment: dev
 - Steps: Checkout code, Setup Node.js, Install dependencies, Build and test, Deploy to Azure Functions
 
-#### Check for Module Update and TF Apply.yml
-
-**Note**: If you manually trigger this workflow, it will run regardless of if there is an update to JMusicBot, scheduled runs will only run if there is an update.
+#### Check for Module Update and TF Apply
+**Note**: If you manually trigger this workflow, it will run and terraform apply regardless of if there is an update to JMusicBot, scheduled runs will only run if there is an update to [`terraform-azurerm-jmusicbot`](https://github.com/RCFromCLE/terraform-azurerm-jmusicbot).
 - Triggers: Daily at 5:30 AM EST, manual
 - Steps: 
   - Check for updates to the terraform-azurerm-jmusicbot module and JMusicBot jar
