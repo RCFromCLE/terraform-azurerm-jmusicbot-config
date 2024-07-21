@@ -19,7 +19,7 @@ This configuration repository automates the deployment of JMusicBot on Azure usi
 - Azure CLI installed locally
 - Discord Application (Bot) with necessary permissions and token
 
-### Setup Instructions
+## Setup Instructions
 
 1. Launch VS Code and open the PowerShell Terminal. Fork and clone this repository:
 
@@ -67,7 +67,6 @@ This configuration repository automates the deployment of JMusicBot on Azure usi
      }
    }
 ```
-## Setup Instructions
 
 ### 4. Configure Terraform Variables
 
