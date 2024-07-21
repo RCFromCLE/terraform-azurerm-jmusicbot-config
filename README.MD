@@ -1,5 +1,3 @@
-Here's the README.md content formatted for direct copy and paste, without any additional comments:
-
 # terraform-azurerm-jmusicbot-config
 
 This repository automates the deployment of JMusicBot on Azure using Terraform and GitHub Actions.
