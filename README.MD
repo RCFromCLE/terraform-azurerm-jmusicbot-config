@@ -263,10 +263,12 @@ The workflow intelligently manages the VM's power state when it runs.
 
 1. Check GitHub Actions logs
 2. Check function app log stream and invocation logs
-3. Use the serial console option under help and support section of the VM to connect and confirm the jdiscordbot.service is running and connected to your Discord server properly. See https://jmusicbot.com/troubleshooting/ for additional troubleshooting information.
+3. Use the serial console option under help and support section of the VM to connect and confirm the jdiscordbot.service is running and connected to your Discord server properly.
 4. Confirm you are using the correct secrets in each of your Terraform Cloud workspace variables sections.
 5. Verify GitHub actions repository secrets
 6. Confirm Azure credentials and permissions
 7. Review Terraform Cloud workspace runs
+
+See https://jmusicbot.com/troubleshooting/ for additional troubleshooting information.
 
 Open an issue in this repository or the terraform-azurerm-jmusicbot repository for persistent problems.
