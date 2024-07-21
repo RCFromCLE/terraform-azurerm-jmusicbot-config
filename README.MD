@@ -211,7 +211,7 @@ Now that your solution is deployed we need to setup the secrets each GitHub Acti
 - **`TF_WORKSPACE_NAME`**: Terraform Cloud workspace name
    - [How to create a Terraform Cloud workspace](https://developer.hashicorp.com/terraform/tutorials/cloud-get-started/cloud-workspace-create)### Verification
 
-After completion, you should have a fully deployed JMusicBot. 
+After adding your secrets, run deploy-function, upon successful function deployment you should have a fully operational JMusicBot project. 
 
 ### Verification
 
