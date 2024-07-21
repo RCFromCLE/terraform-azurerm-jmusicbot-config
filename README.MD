@@ -68,7 +68,7 @@ This configuration repository automates the deployment of JMusicBot on Azure usi
    }
 ```
 
-### 4. Configure Terraform Variables
+4. Configure Terraform Variables
 
 Fill in `terraform.tfvars` with your Azure and Discord details and run `terraform init` for each workspace.
 
@@ -102,7 +102,7 @@ music_channel_id    = ""
 
 **Note**: You can use `set_workspace_variable.ps1` to automatically create variables in the Terraform Cloud Workspace from your local variables. Simply fill out your Terraform API token, org name, and workspace name, place the script in the same directory as `terraform.tfvars`, and run the script.
 
-### 5. Configure Terraform Cloud Workspaces
+5. Configure Terraform Cloud Workspaces
 
 After running `terraform init` for both the Key Vault and primary configurations, verify that you can see the workspaces in Terraform Cloud. They will not have a run status until after the first run.
 
