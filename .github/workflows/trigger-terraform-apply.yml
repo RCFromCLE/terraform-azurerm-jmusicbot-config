@@ -2,7 +2,7 @@ name: Check for JMusicBot Update and TF Apply
 
 on:
   schedule:
-    - cron: '30 10 30 * *'  # Run daily at 5:30 AM EST - Will only run tf apply if new release is detected (scheduled run)
+    - cron: '30 10 * * *'  # Run daily at 5:30 AM EST - Will only run tf apply if new release is detected (scheduled run)
   workflow_dispatch:  # manual trigger, will run tf apply regardless of new release or not (manual run)
 
 env:
@@ -10,6 +10,7 @@ env:
   TF_WORKSPACE_NAME: ${{ secrets.TF_WORKSPACE_NAME }}
   AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
   AZURE_VM_NAME: ${{ secrets.AZURE_VM_NAME }}
+  FUNCTION_APP_NAME: jdiscord-function
   MODULE_REPO: RCFromCLE/terraform-azurerm-jmusicbot
 
 jobs:
@@ -76,6 +77,11 @@ jobs:
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Disable Function App
+        run: |
+          echo "Disabling Function App..."
+          az functionapp stop --name ${{ env.FUNCTION_APP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
 
       - name: Check Initial VM Power State
         id: check_initial_state
@@ -200,3 +206,8 @@ jobs:
           echo "Restoring VM to initial power state (powering off)..."
           az vm deallocate --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_VM_NAME"
           echo "VM powered off."
+
+      - name: Enable Function App
+        run: |
+          echo "Enabling Function App..."
+          az functionapp start --name ${{ env.FUNCTION_APP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
