@@ -38,7 +38,7 @@ JMusicBot is an open-source Discord music bot that plays music in voice channels
    cd terraform-azurerm-jmusicbot-config/jdiscord-kv-config
 ```
 
-2. Create Azure Service Principal. Be sure to take note of the cliend_id upon creation. Open the Azure portal and create a secret for this registered application (SPN), hold on to this secret we will use it soon. 
+2. Create Azure Service Principal. Be sure to take note of the client_id upon creation. Open the Azure portal and create a secret for this registered application (SPN), hold on to this secret we will use it soon. 
 
 ```powershell
    az login
