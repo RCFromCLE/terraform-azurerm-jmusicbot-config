@@ -242,7 +242,8 @@ Verify the deployment by:
   - Check for updates to the terraform-azurerm-jmusicbot module and JMusicBot jar
   - Update configurations
   - Azure login and Terraform init to download the latest terraform-azurerm-jmusicbot module
-  - VM state management 
+  - VM state management
+  - Function app state management
   - Terraform operations - Plan, Apply
   - Conditions: If updates are found, If VM is off, If VM is on
 
@@ -265,12 +266,12 @@ Checks for new module and jar releases, updates, configurations, and triggers Te
 
 #### VM Management
 
-The workflow intelligently manages the VM's power state when it runs.
+The workflow intelligently manages the VM and Function app's power state when it runs.
 
- - Pre-update Check: Verifies the VM's current power state.
- - Activation: If the VM is off, the workflow starts before applying changes.
+ - Pre-update Check: Verifies the VM and function apps  current power state.
+ - Activation: If the VM and/or Function app is off, the workflow starts before applying changes.
  - Update Process: Applies necessary updates and configuration changes while the VM is running.
- - State Restoration: After updates, if the VM was initially off, the workflow returns it to a powered-off state.
+ - State Restoration: After updates, if the VM and/or Function app was initially off, the workflow returns it to a powered-off state.
 
 ## Troubleshooting
 
