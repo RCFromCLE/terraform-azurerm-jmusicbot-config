@@ -2,7 +2,7 @@ name: Check for JMusicBot Update and TF Apply
 
 on:
   schedule:
-    - cron: '30 10 * * *'  # Run daily at 5:30 AM EST - Will only run tf apply if new release is detected (scheduled run)
+    - cron: '30 9 * * *'  # Run daily at 5:30 AM EST - Will only run tf apply if new release is detected (scheduled run)
   workflow_dispatch:  # manual trigger, will run tf apply regardless of new release or not (manual run)
 
 env:
@@ -31,9 +31,11 @@ jobs:
           if [ "$module_latest_release" != "$current_version" ]; then
             echo "new_release=true" >> $GITHUB_OUTPUT
             echo "latest_version=$module_latest_release" >> $GITHUB_OUTPUT
+            echo "New release found. Proceeding with update."
           else
             echo "new_release=false" >> $GITHUB_OUTPUT
             echo "No new release found. Exiting workflow."
+            exit 0
           fi
 
       - name: Update main.tf
@@ -94,12 +96,18 @@ jobs:
             -o tsv)
           echo "Initial VM Power State: $VM_STATE"
           echo "initial_state=$VM_STATE" >> $GITHUB_OUTPUT
-
           if [ "$VM_STATE" != "VM running" ]; then
             echo "Starting VM..."
             az vm start --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_VM_NAME"
             echo "Waiting for VM to be in running state..."
+            TIMEOUT=600  # 10 minutes timeout
+            start_time=$(date +%s)
             while [ "$VM_STATE" != "VM running" ]; do
+              current_time=$(date +%s)
+              if [ $((current_time - start_time)) -gt $TIMEOUT ]; then
+                echo "Timeout waiting for VM to start. Exiting."
+                exit 1
+              fi
               sleep 30
               VM_STATE=$(az vm get-instance-view \
                 --resource-group "$AZURE_RESOURCE_GROUP" \
