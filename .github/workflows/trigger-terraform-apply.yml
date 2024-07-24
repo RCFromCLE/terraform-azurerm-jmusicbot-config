@@ -21,58 +21,59 @@ jobs:
         with:
           token: ${{ secrets.PAT_TOKEN }}
 
-      - name: Check for new module release
-        id: check_release
+      - name: Check for updates
+        id: check_updates
         run: |
+          # Check module version
           module_latest_release=$(curl -s https://api.github.com/repos/${{ env.MODULE_REPO }}/releases/latest | jq -r .tag_name)
           echo "Latest module release: $module_latest_release"
-          current_version=$(grep 'version = ' main.tf | sed 's/.*version = "\(.*\)".*/\1/')
-          echo "Current version: $current_version"
-          if [ "$module_latest_release" != "$current_version" ]; then
-            echo "new_release=true" >> $GITHUB_OUTPUT
-            echo "latest_version=$module_latest_release" >> $GITHUB_OUTPUT
-            echo "New release found. Proceeding with update."
+          current_module_version=$(grep 'version = ' main.tf | sed 's/.*version = "\(.*\)".*/\1/')
+          echo "Current module version: $current_module_version"
+          
+          # Check JMusicBot version
+          jar_latest_release=$(curl -s https://api.github.com/repos/jagrosh/MusicBot/releases/latest | jq -r .tag_name)
+          echo "Latest JMusicBot release: $jar_latest_release"
+          current_jar_version=$(grep 'default.*JMusicBot-.*\.jar' variables.tf | sed 's/.*JMusicBot-\(.*\)\.jar.*/\1/')
+          echo "Current JMusicBot version: $current_jar_version"
+          
+          # Compare versions
+          if [ "$module_latest_release" != "$current_module_version" ] || [ "$jar_latest_release" != "$current_jar_version" ]; then
+            echo "update_needed=true" >> $GITHUB_OUTPUT
+            echo "module_latest_version=$module_latest_release" >> $GITHUB_OUTPUT
+            echo "jar_latest_version=$jar_latest_release" >> $GITHUB_OUTPUT
+            echo "Update needed. Proceeding with update."
           else
-            echo "new_release=false" >> $GITHUB_OUTPUT
-            echo "No new release found. Exiting workflow."
-            exit 0
+            echo "update_needed=false" >> $GITHUB_OUTPUT
+            echo "No update needed."
           fi
 
       - name: Update main.tf
-        if: steps.check_release.outputs.new_release == 'true'
+        if: steps.check_updates.outputs.update_needed == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
-          sed -i 's/version = "[0-9.]*"/version = "${{ steps.check_release.outputs.latest_version }}"/' main.tf
+          sed -i 's/version = "[0-9.]*"/version = "${{ steps.check_updates.outputs.module_latest_version }}"/' main.tf
           git config user.name github-actions
           git config user.email github-actions@github.com
           git add main.tf
-          git commit -m "Update module version to ${{ steps.check_release.outputs.latest_version }}" || echo "No changes to commit."
+          git commit -m "Update module version to ${{ steps.check_updates.outputs.module_latest_version }}" || echo "No changes to commit."
           git push https://RCFromCLE:${{ secrets.PAT_TOKEN }}@github.com/RCFromCLE/terraform-azurerm-jmusicbot-config.git || echo "No changes to push."
 
-      - name: Check for new JMusicBot jar file
-        id: check_jar
-        run: |
-          jar_latest_release=$(curl -s https://api.github.com/repos/jagrosh/MusicBot/releases/latest | jq -r .tag_name)
-          echo "Latest JMusicBot jar release: $jar_latest_release"
-          new_jar_path="JMusicBot-${jar_latest_release}.jar"
-          echo "new_jar_path=$new_jar_path" >> $GITHUB_OUTPUT
-          echo "jar_latest_release=$jar_latest_release" >> $GITHUB_OUTPUT
-
       - name: Update variables.tf
-        if: steps.check_jar.outputs.new_jar_path != 'false'
+        if: steps.check_updates.outputs.update_needed == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
-          sed -i 's/default\s*=\s*"JMusicBot-.*\.jar"/default = "'${{ steps.check_jar.outputs.new_jar_path }}'"/' variables.tf
+          new_jar_path="JMusicBot-${{ steps.check_updates.outputs.jar_latest_version }}.jar"
+          sed -i 's/default\s*=\s*"JMusicBot-.*\.jar"/default = "'$new_jar_path'"/' variables.tf
           git add variables.tf
-          git commit -m "Update jar_path in variables.tf to ${{ steps.check_jar.outputs.new_jar_path }}" || echo "No changes to commit."
+          git commit -m "Update jar_path in variables.tf to $new_jar_path" || echo "No changes to commit."
           git push https://RCFromCLE:${{ secrets.PAT_TOKEN }}@github.com/RCFromCLE/terraform-azurerm-jmusicbot.git || echo "No changes to push."
 
-      - name: Exit if no new release found (scheduled run)
-        if: steps.check_release.outputs.new_release == 'false' && github.event_name == 'schedule'
+      - name: Exit if no update needed (scheduled run)
+        if: steps.check_updates.outputs.update_needed == 'false' && github.event_name == 'schedule'
         run: |
-          echo "No new release found. Exiting workflow."
+          echo "No update needed. Exiting workflow."
           exit 0
 
       - name: Azure Login
@@ -128,7 +129,6 @@ jobs:
         run: terraform init
 
       - name: Get Workspace ID
-        if: steps.check_release.outputs.new_release == 'true'
         id: workspace
         run: |
           echo "Getting Terraform Cloud Workspace ID..."
@@ -141,7 +141,6 @@ jobs:
           echo "id=$WORKSPACE_ID" >> $GITHUB_OUTPUT
 
       - name: Trigger Terraform Apply
-        if: steps.check_release.outputs.new_release == 'true'
         id: apply
         run: |
           echo "Triggering Terraform Apply..."
@@ -154,7 +153,7 @@ jobs:
                 "type": "runs",
                 "attributes": {
                   "is-destroy": false,
-                  "message": "New JMusicBot version detected - '${{ steps.check_jar.outputs.jar_latest_release }}'",
+                  "message": "Update triggered - Module: ${{ steps.check_updates.outputs.module_latest_version }}, JMusicBot: ${{ steps.check_updates.outputs.jar_latest_version }}",
                   "auto-apply": true,
                   "refresh": true,
                   "replace-addrs": ["module.jmusicbot.azurerm_virtual_machine_extension.run_jdiscordbot"]
@@ -185,7 +184,6 @@ jobs:
           fi
 
       - name: Monitor Terraform Apply Status
-        if: steps.check_release.outputs.new_release == 'true'
         run: |
           echo "Monitoring Terraform Apply status..."
           while true; do
