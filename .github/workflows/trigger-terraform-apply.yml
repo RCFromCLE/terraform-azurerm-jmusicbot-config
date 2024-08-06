@@ -52,11 +52,28 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
-          sed -i 's/version = "[0-9.]*"/version = "${{ steps.check_updates.outputs.module_latest_version }}"/' main.tf
+          # Fetch the latest module configuration
+          latest_module_config=$(curl -s https://raw.githubusercontent.com/${{ env.MODULE_REPO }}/main/README.md | sed -n '/```hcl/,/```/p' | sed '1d;$d')
+          
+          # Update the version in the fetched configuration
+          latest_module_config=$(echo "$latest_module_config" | sed "s/version = \".*\"/version = \"${{ steps.check_updates.outputs.module_latest_version }}\"/" )
+          
+          # Replace the existing module block in main.tf
+          awk -v new_config="$latest_module_config" '
+          /^module "jmusicbot" {/,/^}/ {
+            if (!printed) {
+              print new_config
+              printed=1
+            }
+            next
+          }
+          1
+          ' main.tf > main.tf.tmp && mv main.tf.tmp main.tf
+          
           git config user.name github-actions
           git config user.email github-actions@github.com
           git add main.tf
-          git commit -m "Update module version to ${{ steps.check_updates.outputs.module_latest_version }}" || echo "No changes to commit."
+          git commit -m "Update module configuration to version ${{ steps.check_updates.outputs.module_latest_version }}" || echo "No changes to commit."
           git push https://RCFromCLE:${{ secrets.PAT_TOKEN }}@github.com/RCFromCLE/terraform-azurerm-jmusicbot-config.git || echo "No changes to push."
 
       - name: Update variables.tf
