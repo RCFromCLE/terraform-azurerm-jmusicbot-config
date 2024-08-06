@@ -3,7 +3,7 @@ name: Check for JMusicBot Update and TF Apply
 on:
   schedule:
     - cron: '30 9 * * *'  # Run daily at 5:30 AM EST - Will only run tf apply if new release is detected (scheduled run)
-  workflow_dispatch:  # manual trigger, will run tf apply regardless of new release or not (manual run)
+      workflow_dispatch:  # manual trigger, will run tf apply regardless of new release or not (manual run)
 
 env:
   TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
