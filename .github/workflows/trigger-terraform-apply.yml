@@ -59,7 +59,7 @@ jobs:
           git commit -m "Update module version to ${{ steps.check_updates.outputs.module_latest_version }}" || echo "No changes to commit."
           git push https://RCFromCLE:${{ secrets.PAT_TOKEN }}@github.com/RCFromCLE/terraform-azurerm-jmusicbot-config.git || echo "No changes to push."
 
-      - name: Update variables.tf
+     - name: Update variables.tf
         if: steps.check_updates.outputs.update_needed == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
@@ -68,7 +68,7 @@ jobs:
           sed -i 's/default\s*=\s*"JMusicBot-.*\.jar"/default = "'$new_jar_path'"/' variables.tf
           git add variables.tf
           git commit -m "Update jar_path in variables.tf to $new_jar_path" || echo "No changes to commit."
-          git push https://RCFromCLE:${{ secrets.PAT_TOKEN }}@github.com/RCFromCLE/terraform-azurerm-jmusicbot.git || echo "No changes to push."
+          git push https://RCFromCLE:${{ secrets.PAT_TOKEN }}@github.com/RCFromCLE/terraform-azurerm-jmusicbot-config.git || echo "No changes to push."
 
       - name: Exit if no update needed (scheduled run)
         if: steps.check_updates.outputs.update_needed == 'false' && github.event_name == 'schedule'
