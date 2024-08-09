@@ -1,136 +1,221 @@
-name: Update Module and Apply Terraform
+name: Check for JMusicBot Update and TF Apply
 
 on:
   schedule:
-    - cron: '0 10 * * *'  # Run daily at 5 AM EST
-  workflow_dispatch:  # Allow manual triggering
+    - cron: '30 9 * * *'  # Run daily at 5:30 AM EST - Will only run tf apply if new release is detected (scheduled run)
+  workflow_dispatch:  # manual trigger, will run tf apply regardless of new release or not (manual run)
+
+env:
+  TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
+  TF_WORKSPACE_NAME: ${{ secrets.TF_WORKSPACE_NAME }}
+  AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+  AZURE_VM_NAME: ${{ secrets.AZURE_VM_NAME }}
+  FUNCTION_APP_NAME: jdiscord-function
+  MODULE_REPO: RCFromCLE/terraform-azurerm-jmusicbot
 
 jobs:
-  update-and-apply:
+  check-and-apply:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
         with:
-          fetch-depth: 0  # Fetch all history for all tags and branches
+          token: ${{ secrets.PAT_TOKEN }}
 
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v1
-        with:
-          terraform_version: 1.0.0  # Specify your desired Terraform version
-
-      - name: Get current version from main.tf
-        id: current-version
+      - name: Check for updates
+        id: check_updates
         run: |
-          current_version=$(grep -oP 'source\s*=\s*"github.com/RCFromCLE/terraform-azurerm-jmusicbot\?ref=v\K[0-9.]+' main.tf || echo "")
-          echo "Current version in main.tf: $current_version"
-          echo "current_version=$current_version" >> $GITHUB_OUTPUT
-
-      - name: Check for new module release
-        id: check-release
-        run: |
-          latest_release=$(curl -s https://api.github.com/repos/RCFromCLE/terraform-azurerm-jmusicbot/releases/latest | jq -r .tag_name)
-          echo "Latest release: $latest_release"
-          echo "new_version=$latest_release" >> $GITHUB_OUTPUT
-
-        - name: Update module version in main.tf
-        id: update-module
-        run: |
-          current_version=$(grep -oP 'version\s*=\s*"v\K[0-9.]+' main.tf || echo "")
-          latest_version="${{ steps.check-release.outputs.new_version }}"
+          # Check module version
+          module_latest_release=$(curl -s https://api.github.com/repos/${{ env.MODULE_REPO }}/releases/latest | jq -r .tag_name)
+          echo "Latest module release: $module_latest_release"
+          current_module_version=$(grep 'version\s*=\s*"v' main.tf | sed 's/.*version\s*=\s*"v\(.*\)".*/\1/')
+          echo "Current module version: $current_module_version"
           
-          echo "Current version: $current_version"
-          echo "Latest version: $latest_version"
+          # Check JMusicBot version
+          jar_latest_release=$(curl -s https://api.github.com/repos/jagrosh/MusicBot/releases/latest | jq -r .tag_name)
+          echo "Latest JMusicBot release: $jar_latest_release"
+          current_jar_version=$(grep 'default.*JMusicBot-.*\.jar' variables.tf | sed 's/.*JMusicBot-\(.*\)\.jar.*/\1/')
+          echo "Current JMusicBot version: $current_jar_version"
           
-          if [ -z "$current_version" ]; then
-            echo "Error: Could not find current version in main.tf"
-            grep -n "version" main.tf
-            exit 1
-          fi
-
-          if [ -z "$latest_version" ]; then
-            echo "Error: Could not fetch latest version"
-            exit 1
-          fi
-         
-          if [ "$latest_version" != "v$current_version" ] && [ "$latest_version" != "null" ]; then
-            echo "New version available: $latest_version"
-            # Update main.tf
-            sed -i 's|\(version\s*=\s*"v\)[0-9.]*|\1'"${latest_version#v}"'|' main.tf
-            
-            echo "Updated main.tf content:"
-            cat main.tf
-            
-            git config user.name github-actions
-            git config user.email github-actions@github.com
-            git add main.tf
-            git commit -m "Update jmusicbot module version to $latest_version"
-            
-            # Fetch the latest changes
-            git fetch origin main
-            
-            # Attempt to rebase
-            if git rebase origin/main; then
-              # If rebase is successful, force push the changes
-              git push --force-with-lease
-              echo "updated=true" >> $GITHUB_OUTPUT
-              echo "new_version=$latest_version" >> $GITHUB_OUTPUT
-            else
-              # If rebase fails, undo the changes and exit
-              git rebase --abort
-              git reset --hard origin/main
-              echo "Failed to update due to conflicts. Please check the repository manually."
-              echo "updated=false" >> $GITHUB_OUTPUT
-              exit 1
-            fi
+          # Compare versions
+          if [ "$module_latest_release" != "v$current_module_version" ] || [ "$jar_latest_release" != "$current_jar_version" ]; then
+            echo "update_needed=true" >> $GITHUB_OUTPUT
+            echo "module_latest_version=$module_latest_release" >> $GITHUB_OUTPUT
+            echo "jar_latest_version=$jar_latest_release" >> $GITHUB_OUTPUT
+            echo "Update needed. Proceeding with update."
           else
-            echo "No new version available or unable to fetch latest version. Current version is up to date."
-            echo "updated=false" >> $GITHUB_OUTPUT
+            echo "update_needed=false" >> $GITHUB_OUTPUT
+            echo "No update needed."
           fi
+
+      - name: Update main.tf
+        if: steps.check_updates.outputs.update_needed == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          # Update the version in main.tf
+          sed -i 's/\(version\s*=\s*"v\)[0-9.]*"/\1${{ steps.check_updates.outputs.module_latest_version#v }}"/' main.tf
+          
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add main.tf
+          git commit -m "Update module version to ${{ steps.check_updates.outputs.module_latest_version }}" || echo "No changes to commit."
+          git push https://RCFromCLE:${{ secrets.PAT_TOKEN }}@github.com/RCFromCLE/terraform-azurerm-jmusicbot-config.git || echo "No changes to push."
+
+      - name: Update variables.tf
+        if: steps.check_updates.outputs.update_needed == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          new_jar_path="JMusicBot-${{ steps.check_updates.outputs.jar_latest_version }}.jar"
+          sed -i 's/default\s*=\s*"JMusicBot-.*\.jar"/default = "'$new_jar_path'"/' variables.tf
+          git add variables.tf
+          git commit -m "Update jar_path in variables.tf to $new_jar_path" || echo "No changes to commit."
+          git push https://RCFromCLE:${{ secrets.PAT_TOKEN }}@github.com/RCFromCLE/terraform-azurerm-jmusicbot-config.git || echo "No changes to push."
+
+      - name: Exit if no update needed (scheduled run)
+        if: steps.check_updates.outputs.update_needed == 'false' && github.event_name == 'schedule'
+        run: |
+          echo "No update needed. Exiting workflow."
+          exit 0
 
       - name: Azure Login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Terraform Init
+      - name: Disable Function App
+        run: |
+          echo "Disabling Function App..."
+          az functionapp stop --name ${{ env.FUNCTION_APP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
+
+      - name: Check Initial VM Power State
+        id: check_initial_state
+        run: |
+          echo "Checking initial VM power state..."
+          VM_STATE=$(az vm get-instance-view \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_VM_NAME" \
+            --query instanceView.statuses[1].displayStatus \
+            -o tsv)
+          echo "Initial VM Power State: $VM_STATE"
+          echo "initial_state=$VM_STATE" >> $GITHUB_OUTPUT
+          if [ "$VM_STATE" != "VM running" ]; then
+            echo "Starting VM..."
+            az vm start --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_VM_NAME"
+            echo "Waiting for VM to be in running state..."
+            TIMEOUT=600  # 10 minutes timeout
+            start_time=$(date +%s)
+            while [ "$VM_STATE" != "VM running" ]; do
+              current_time=$(date +%s)
+              if [ $((current_time - start_time)) -gt $TIMEOUT ]; then
+                echo "Timeout waiting for VM to start. Exiting."
+                exit 1
+              fi
+              sleep 30
+              VM_STATE=$(az vm get-instance-view \
+                --resource-group "$AZURE_RESOURCE_GROUP" \
+                --name "$AZURE_VM_NAME" \
+                --query instanceView.statuses[1].displayStatus \
+                -o tsv)
+              echo "Current VM state: $VM_STATE"
+            done
+            echo "VM is now running."
+          fi
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+
+      - name: Initialize Terraform
         run: terraform init
 
-      - name: Terraform Plan
-        run: terraform plan -out=tfplan
-        
-      - name: Terraform Apply
-        if: steps.update-module.outputs.updated == 'true' || github.event_name == 'workflow_dispatch'
-        run: terraform apply -auto-approve tfplan
-
-      - name: Get next version number
-        id: get_next_version
-        if: steps.update-module.outputs.updated == 'true'
+      - name: Get Workspace ID
+        id: workspace
         run: |
-          # Get all tags, sort them, and get the latest one
-          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          
-          # Remove 'v' prefix if present
-          latest_version=${latest_tag#v}
-          
-          # Split the version into parts
-          IFS='.' read -r -a version_parts <<< "$latest_version"
-          
-          # Increment the patch version
-          new_patch=$((${version_parts[2]:-0} + 1))
-          new_version="${version_parts[0]:-0}.${version_parts[1]:-0}.$new_patch"
-          
-          echo "Next version: v$new_version"
-          echo "next_version=v$new_version" >> $GITHUB_OUTPUT
+          echo "Getting Terraform Cloud Workspace ID..."
+          WORKSPACE_ID=$(curl \
+            --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
+            --header "Content-Type: application/vnd.api+json" \
+            https://app.terraform.io/api/v2/organizations/${TF_CLOUD_ORGANIZATION}/workspaces/${TF_WORKSPACE_NAME} \
+            | jq -r '.data.id')
+          echo "Workspace ID: $WORKSPACE_ID"
+          echo "id=$WORKSPACE_ID" >> $GITHUB_OUTPUT
 
-      - name: Create Release
-        if: steps.update-module.outputs.updated == 'true'
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.get_next_version.outputs.next_version }}
-          release_name: Release ${{ steps.get_next_version.outputs.next_version }}
-          body: |
-            Updated to jmusicbot module version ${{ steps.update-module.outputs.new_version }}
-          draft: false
-          prerelease: false
+      - name: Trigger Terraform Apply
+        id: apply
+        run: |
+          echo "Triggering Terraform Apply..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
+            --header "Content-Type: application/vnd.api+json" \
+            --request POST \
+            --data '{
+              "data": {
+                "type": "runs",
+                "attributes": {
+                  "is-destroy": false,
+                  "message": "Update triggered - Module: ${{ steps.check_updates.outputs.module_latest_version }}, JMusicBot: ${{ steps.check_updates.outputs.jar_latest_version }}",
+                  "auto-apply": true,
+                  "refresh": true,
+                  "replace-addrs": ["module.jmusicbot.azurerm_virtual_machine_extension.run_jdiscordbot"]
+                },
+                "relationships": {
+                  "workspace": {
+                    "data": {
+                      "type": "workspaces",
+                      "id": "${{ steps.workspace.outputs.id }}"
+                    }
+                  }
+                }
+              }
+            }' \
+            https://app.terraform.io/api/v2/runs)
+          
+          HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          if [ "$HTTP_STATUS" -eq 201 ]; then
+            echo "Terraform apply triggered successfully."
+            RUN_ID=$(echo "$BODY" | jq -r '.data.id')
+            echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+          else
+            echo "Failed to trigger Terraform apply. HTTP status: $HTTP_STATUS"
+            echo "Error message: $(echo "$BODY" | jq -r '.errors[0].title')"
+            exit 1
+          fi
+
+      - name: Monitor Terraform Apply Status
+        run: |
+          echo "Monitoring Terraform Apply status..."
+          while true; do
+            STATUS=$(curl \
+              --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
+              --header "Content-Type: application/vnd.api+json" \
+              https://app.terraform.io/api/v2/runs/${{ steps.apply.outputs.run_id }} \
+              | jq -r '.data.attributes.status')
+            
+            echo "Current status: $STATUS"
+            
+            if [ "$STATUS" = "applied" ]; then
+              echo "SUCCESS: Terraform apply completed successfully."
+              break
+            elif [ "$STATUS" = "errored" ] || [ "$STATUS" = "canceled" ] || [ "$STATUS" = "discarded" ]; then
+              echo "ERROR: Terraform apply failed with status: $STATUS"
+              exit 1
+            fi
+            
+            sleep 30
+          done
+          
+      - name: Restore Initial VM Power State
+        if: steps.check_initial_state.outputs.initial_state != 'VM running'
+        run: |
+          echo "Restoring VM to initial power state (powering off)..."
+          az vm deallocate --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_VM_NAME"
+          echo "VM powered off."
+
+      - name: Enable Function App
+        run: |
+          echo "Enabling Function App..."
+          az functionapp start --name ${{ env.FUNCTION_APP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
