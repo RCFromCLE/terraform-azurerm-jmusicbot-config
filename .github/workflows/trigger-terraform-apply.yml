@@ -52,8 +52,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
+          # Remove 'v' prefix from the version number
+          VERSION_WITHOUT_V=$(echo "${{ steps.check_updates.outputs.module_latest_version }}" | sed 's/^v//')
+          
           # Update the version in main.tf
-          sed -i 's/\(version\s*=\s*"v\)[0-9.]*"/\1${{ steps.check_updates.outputs.module_latest_version#v }}"/' main.tf
+          sed -i 's/\(version\s*=\s*"v\)[0-9.]*"/\1'"$VERSION_WITHOUT_V"'"/' main.tf
           
           git config user.name github-actions
           git config user.email github-actions@github.com
