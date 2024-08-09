@@ -3,52 +3,50 @@ on:
   schedule:
     - cron: '0 10 * * *'  # Run daily at 5 AM EST
   workflow_dispatch:  # Allow manual triggering
+
 jobs:
-  check-and-update-jar:
+  check-and-update-module:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0  # Fetch all history for all tags and branches
      
-      - name: Get current version from variables.tf
+      - name: Get current version from main.tf
         id: current-version
         run: |
-          current_version=$(grep 'default.*JMusicBot-' variables.tf | sed -n 's/.*JMusicBot-\(.*\)\.jar.*/\1/p')
-          echo "Current version in variables.tf: $current_version"
+          current_version=$(grep 'source.*terraform-azurerm-jmusicbot' main.tf | sed -n 's/.*v\([0-9.]*\).*/\1/p')
+          echo "Current version in main.tf: $current_version"
           echo "current_version=$current_version" >> $GITHUB_OUTPUT
 
-      - name: Check for new MusicBot release
+      - name: Check for new module release
         id: check-release
         run: |
-          latest_release=$(curl -s https://api.github.com/repos/jagrosh/MusicBot/releases/latest | jq -r .tag_name)
+          latest_release=$(curl -s https://api.github.com/repos/RCFromCLE/terraform-azurerm-jmusicbot/releases/latest | jq -r .tag_name)
           echo "Latest release: $latest_release"
           echo "new_version=$latest_release" >> $GITHUB_OUTPUT
 
-      - name: Update JAR file and main.tf
-        id: update-jar
+      - name: Update module version in main.tf
+        id: update-module
         run: |
           current_version="${{ steps.current-version.outputs.current_version }}"
           latest_version="${{ steps.check-release.outputs.new_version }}"
          
           if [ "$latest_version" != "$current_version" ] && [ "$latest_version" != "null" ]; then
             echo "New version available: $latest_version"
-            # Update variables.tf
-            sed -i 's/default\s*=\s*"JMusicBot-.*\.jar"/default = "JMusicBot-'$latest_version'.jar"/' variables.tf
-            
             # Update main.tf
-            sed -i 's/version\s*=\s*".*"/version = "'$latest_version'"/' main.tf
+            sed -i 's|\(source.*terraform-azurerm-jmusicbot"\).*v[0-9.]*|\1?ref='"$latest_version"'|' main.tf
             
             git config user.name github-actions
             git config user.email github-actions@github.com
-            git add variables.tf main.tf
-            git commit -m "Update JMusicBot version to $latest_version in variables.tf and main.tf"
+            git add main.tf
+            git commit -m "Update jmusicbot module version to $latest_version"
             
             # Fetch the latest changes
-            git fetch origin master
+            git fetch origin main
             
             # Attempt to rebase
-            if git rebase origin/master; then
+            if git rebase origin/main; then
               # If rebase is successful, force push the changes
               git push --force-with-lease
               echo "updated=true" >> $GITHUB_OUTPUT
@@ -56,7 +54,7 @@ jobs:
             else
               # If rebase fails, undo the changes and exit
               git rebase --abort
-              git reset --hard origin/master
+              git reset --hard origin/main
               echo "Failed to update due to conflicts. Please check the repository manually."
               echo "updated=false" >> $GITHUB_OUTPUT
               exit 1
@@ -68,7 +66,7 @@ jobs:
 
       - name: Get next version number
         id: get_next_version
-        if: steps.update-jar.outputs.updated == 'true'
+        if: steps.update-module.outputs.updated == 'true'
         run: |
           # Get all tags, sort them, and get the latest one
           latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
@@ -87,7 +85,7 @@ jobs:
           echo "next_version=v$new_version" >> $GITHUB_OUTPUT
 
       - name: Create Release
-        if: steps.update-jar.outputs.updated == 'true'
+        if: steps.update-module.outputs.updated == 'true'
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -95,6 +93,6 @@ jobs:
           tag_name: ${{ steps.get_next_version.outputs.next_version }}
           release_name: Release ${{ steps.get_next_version.outputs.next_version }}
           body: |
-            Updated to JMusicBot version ${{ steps.update-jar.outputs.new_version }}
+            Updated to jmusicbot module version ${{ steps.update-module.outputs.new_version }}
           draft: false
           prerelease: false
