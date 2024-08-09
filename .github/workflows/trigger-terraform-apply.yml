@@ -1,7 +1,41 @@
-- name: Update module version in main.tf
+name: Update Module and Apply Terraform
+
+on:
+  schedule:
+    - cron: '0 10 * * *'  # Run daily at 5 AM EST
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  update-and-apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # Fetch all history for all tags and branches
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 1.0.0  # Specify your desired Terraform version
+
+      - name: Get current version from main.tf
+        id: current-version
+        run: |
+          current_version=$(grep -oP 'source\s*=\s*"github.com/RCFromCLE/terraform-azurerm-jmusicbot\?ref=v\K[0-9.]+' main.tf || echo "")
+          echo "Current version in main.tf: $current_version"
+          echo "current_version=$current_version" >> $GITHUB_OUTPUT
+
+      - name: Check for new module release
+        id: check-release
+        run: |
+          latest_release=$(curl -s https://api.github.com/repos/RCFromCLE/terraform-azurerm-jmusicbot/releases/latest | jq -r .tag_name)
+          echo "Latest release: $latest_release"
+          echo "new_version=$latest_release" >> $GITHUB_OUTPUT
+
+      - name: Update module version in main.tf
         id: update-module
         run: |
-          current_version=$(grep -oP 'source\s*=\s*"github.com/RCFromCLE/terraform-azurerm-jmusicbot\?ref=v\K[0-9.]+' main.tf)
+          current_version="${{ steps.current-version.outputs.current_version }}"
           latest_version="${{ steps.check-release.outputs.new_version }}"
           
           echo "Current version: $current_version"
@@ -52,3 +86,51 @@
             echo "No new version available or unable to fetch latest version. Current version is up to date."
             echo "updated=false" >> $GITHUB_OUTPUT
           fi
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+        
+      - name: Terraform Apply
+        if: steps.update-module.outputs.updated == 'true' || github.event_name == 'workflow_dispatch'
+        run: terraform apply -auto-approve tfplan
+
+      - name: Get next version number
+        id: get_next_version
+        if: steps.update-module.outputs.updated == 'true'
+        run: |
+          # Get all tags, sort them, and get the latest one
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          
+          # Remove 'v' prefix if present
+          latest_version=${latest_tag#v}
+          
+          # Split the version into parts
+          IFS='.' read -r -a version_parts <<< "$latest_version"
+          
+          # Increment the patch version
+          new_patch=$((${version_parts[2]:-0} + 1))
+          new_version="${version_parts[0]:-0}.${version_parts[1]:-0}.$new_patch"
+          
+          echo "Next version: v$new_version"
+          echo "next_version=v$new_version" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        if: steps.update-module.outputs.updated == 'true'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.get_next_version.outputs.next_version }}
+          release_name: Release ${{ steps.get_next_version.outputs.next_version }}
+          body: |
+            Updated to jmusicbot module version ${{ steps.update-module.outputs.new_version }}
+          draft: false
+          prerelease: false
