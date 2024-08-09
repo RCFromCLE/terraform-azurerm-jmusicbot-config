@@ -1,41 +1,30 @@
-name: update-jar-and-release
-on:
-  schedule:
-    - cron: '0 10 * * *'  # Run daily at 5 AM EST
-  workflow_dispatch:  # Allow manual triggering
-
-jobs:
-  check-and-update-module:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0  # Fetch all history for all tags and branches
-     
-      - name: Get current version from main.tf
-        id: current-version
-        run: |
-          current_version=$(grep 'source.*terraform-azurerm-jmusicbot' main.tf | sed -n 's/.*v\([0-9.]*\).*/\1/p')
-          echo "Current version in main.tf: $current_version"
-          echo "current_version=$current_version" >> $GITHUB_OUTPUT
-
-      - name: Check for new module release
-        id: check-release
-        run: |
-          latest_release=$(curl -s https://api.github.com/repos/RCFromCLE/terraform-azurerm-jmusicbot/releases/latest | jq -r .tag_name)
-          echo "Latest release: $latest_release"
-          echo "new_version=$latest_release" >> $GITHUB_OUTPUT
-
-      - name: Update module version in main.tf
+- name: Update module version in main.tf
         id: update-module
         run: |
-          current_version="${{ steps.current-version.outputs.current_version }}"
+          current_version=$(grep -oP 'source\s*=\s*"github.com/RCFromCLE/terraform-azurerm-jmusicbot\?ref=v\K[0-9.]+' main.tf)
           latest_version="${{ steps.check-release.outputs.new_version }}"
+          
+          echo "Current version: $current_version"
+          echo "Latest version: $latest_version"
+          
+          if [ -z "$current_version" ]; then
+            echo "Error: Could not find current version in main.tf"
+            cat main.tf
+            exit 1
+          fi
+
+          if [ -z "$latest_version" ]; then
+            echo "Error: Could not fetch latest version"
+            exit 1
+          fi
          
-          if [ "$latest_version" != "$current_version" ] && [ "$latest_version" != "null" ]; then
+          if [ "$latest_version" != "v$current_version" ] && [ "$latest_version" != "null" ]; then
             echo "New version available: $latest_version"
             # Update main.tf
-            sed -i 's|\(source.*terraform-azurerm-jmusicbot"\).*v[0-9.]*|\1?ref='"$latest_version"'|' main.tf
+            sed -i 's|\(source\s*=\s*"github.com/RCFromCLE/terraform-azurerm-jmusicbot?ref=v\)[0-9.]*|\1'"${latest_version#v}"'|' main.tf
+            
+            echo "Updated main.tf content:"
+            cat main.tf
             
             git config user.name github-actions
             git config user.email github-actions@github.com
@@ -63,36 +52,3 @@ jobs:
             echo "No new version available or unable to fetch latest version. Current version is up to date."
             echo "updated=false" >> $GITHUB_OUTPUT
           fi
-
-      - name: Get next version number
-        id: get_next_version
-        if: steps.update-module.outputs.updated == 'true'
-        run: |
-          # Get all tags, sort them, and get the latest one
-          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          
-          # Remove 'v' prefix if present
-          latest_version=${latest_tag#v}
-          
-          # Split the version into parts
-          IFS='.' read -r -a version_parts <<< "$latest_version"
-          
-          # Increment the patch version
-          new_patch=$((${version_parts[2]:-0} + 1))
-          new_version="${version_parts[0]:-0}.${version_parts[1]:-0}.$new_patch"
-          
-          echo "Next version: v$new_version"
-          echo "next_version=v$new_version" >> $GITHUB_OUTPUT
-
-      - name: Create Release
-        if: steps.update-module.outputs.updated == 'true'
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.get_next_version.outputs.next_version }}
-          release_name: Release ${{ steps.get_next_version.outputs.next_version }}
-          body: |
-            Updated to jmusicbot module version ${{ steps.update-module.outputs.new_version }}
-          draft: false
-          prerelease: false
