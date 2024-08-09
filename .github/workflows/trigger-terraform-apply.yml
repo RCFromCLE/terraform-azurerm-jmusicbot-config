@@ -32,10 +32,10 @@ jobs:
           echo "Latest release: $latest_release"
           echo "new_version=$latest_release" >> $GITHUB_OUTPUT
 
-      - name: Update module version in main.tf
+        - name: Update module version in main.tf
         id: update-module
         run: |
-          current_version="${{ steps.current-version.outputs.current_version }}"
+          current_version=$(grep -oP 'version\s*=\s*"v\K[0-9.]+' main.tf || echo "")
           latest_version="${{ steps.check-release.outputs.new_version }}"
           
           echo "Current version: $current_version"
@@ -43,7 +43,7 @@ jobs:
           
           if [ -z "$current_version" ]; then
             echo "Error: Could not find current version in main.tf"
-            cat main.tf
+            grep -n "version" main.tf
             exit 1
           fi
 
@@ -55,7 +55,7 @@ jobs:
           if [ "$latest_version" != "v$current_version" ] && [ "$latest_version" != "null" ]; then
             echo "New version available: $latest_version"
             # Update main.tf
-            sed -i 's|\(source\s*=\s*"github.com/RCFromCLE/terraform-azurerm-jmusicbot?ref=v\)[0-9.]*|\1'"${latest_version#v}"'|' main.tf
+            sed -i 's|\(version\s*=\s*"v\)[0-9.]*|\1'"${latest_version#v}"'|' main.tf
             
             echo "Updated main.tf content:"
             cat main.tf
