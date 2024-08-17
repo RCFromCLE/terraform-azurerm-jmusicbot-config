@@ -135,7 +135,7 @@ jobs:
 
       - name: Import VM Extension
         run: |
-          terraform import \
+          terraform import -ignore-remote-version \
             module.jmusicbot.azurerm_virtual_machine_extension.run_jdiscordbot \
             "/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ env.AZURE_RESOURCE_GROUP }}/providers/Microsoft.Compute/virtualMachines/${{ env.AZURE_VM_NAME }}/extensions/run_jdiscordbot"
 
@@ -220,7 +220,7 @@ jobs:
             
             sleep 30
           done
-          
+
       - name: Restore Initial VM Power State
         if: steps.check_initial_state.outputs.initial_state != 'VM running'
         run: |
