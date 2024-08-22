@@ -1,58 +1,20 @@
-name: Check for Module Update and TF Apply
+name: Trigger Terraform Apply
 
 on:
-  schedule:
-    - cron: '30 5 * * *'  # Run daily at 5:30 AM UTC
-  workflow_dispatch:  # Keep manual trigger option
+  repository_dispatch:
+    types: [module-updated]
+  workflow_dispatch:
 
 env:
   TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
   TF_WORKSPACE_NAME: ${{ secrets.TF_WORKSPACE_NAME }}
   AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
   AZURE_VM_NAME: ${{ secrets.AZURE_VM_NAME }}
-  MODULE_REPO: RCFromCLE/terraform-azurerm-jmusicbot
 
 jobs:
-  check-and-apply:
+  trigger-and-monitor-terraform:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-        with:
-          token: ${{ secrets.PAT_TOKEN }}
-
-      - name: Check for new module release
-        id: check_release
-        run: |
-          module_latest_release=$(curl -s https://api.github.com/repos/${{ env.MODULE_REPO }}/releases/latest | jq -r .tag_name)
-          echo "Latest module release: $module_latest_release"
-          current_version=$(grep 'version = ' main.tf | sed 's/.*version = "\(.*\)".*/\1/')
-          echo "Current version: $current_version"
-          if [ "$module_latest_release" != "$current_version" ]; then
-            echo "new_release=true" >> $GITHUB_OUTPUT
-            echo "latest_version=$module_latest_release" >> $GITHUB_OUTPUT
-          else
-            echo "new_release=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Update main.tf
-        if: steps.check_release.outputs.new_release == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
-        run: |
-          sed -i 's/version = "[0-9.]*"/version = "${{ steps.check_release.outputs.latest_version }}"/' main.tf
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          git add main.tf
-          git commit -m "Update module version to ${{ steps.check_release.outputs.latest_version }}" || echo "No changes to commit."
-          git push https://RCFromCLE:${{ secrets.PAT_TOKEN }}@github.com/RCFromCLE/terraform-azurerm-jmusicbot-config.git || echo "No changes to push."
-
-      - name: Check for new JMusicBot jar file
-        id: check_jar
-        run: |
-          jar_latest_release=$(curl -s https://api.github.com/repos/jagrosh/MusicBot/releases/latest | jq -r .tag_name)
-          echo "Latest JMusicBot jar release: $jar_latest_release"
-          echo "jar_latest_release=$jar_latest_release" >> $GITHUB_OUTPUT
-
       - name: Azure Login
         uses: azure/login@v1
         with:
@@ -68,8 +30,8 @@ jobs:
             --query instanceView.statuses[1].displayStatus \
             -o tsv)
           echo "Initial VM Power State: $VM_STATE"
-          echo "initial_state=$VM_STATE" >> $GITHUB_OUTPUT
-
+          echo "::set-output name=initial_state::$VM_STATE"
+          
           if [ "$VM_STATE" != "VM running" ]; then
             echo "Starting VM..."
             az vm start --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_VM_NAME"
@@ -86,36 +48,83 @@ jobs:
             echo "VM is now running."
           fi
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
-
-      - name: Initialize Terraform
-        run: terraform init
-
-      - name: Terraform Plan
-        id: plan
+      - name: Get Workspace ID
+        id: workspace
         run: |
-          terraform plan -no-color -out=tfplan
+          echo "Getting Terraform Cloud Workspace ID..."
+          WORKSPACE_ID=$(curl \
+            --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
+            --header "Content-Type: application/vnd.api+json" \
+            https://app.terraform.io/api/v2/organizations/${TF_CLOUD_ORGANIZATION}/workspaces/${TF_WORKSPACE_NAME} \
+            | jq -r '.data.id')
+          echo "Workspace ID: $WORKSPACE_ID"
+          echo "::set-output name=id::$WORKSPACE_ID"
 
-      - name: Terraform Apply
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-        run: terraform apply -auto-approve tfplan
-
-      - name: Cleanup Terraform artifacts
-        if: always()
+      - name: Trigger Terraform Apply
+        id: apply
         run: |
-          rm -f tfplan
-
-      - name: Check VM Extension Status
-        run: |
-          extension_status=$(az vm extension show --resource-group $AZURE_RESOURCE_GROUP --vm-name $AZURE_VM_NAME --name run_jdiscordbot --query "provisioningState" -o tsv)
-          echo "VM Extension Status: $extension_status"
-          if [ "$extension_status" != "Succeeded" ]; then
-            echo "VM Extension deployment failed. Check the Azure portal for more details."
+          echo "Triggering Terraform Apply..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
+            --header "Content-Type: application/vnd.api+json" \
+            --request POST \
+            --data '{
+              "data": {
+                "type": "runs",
+                "attributes": {
+                  "is-destroy": false,
+                  "message": "Triggered by GitHub Actions",
+                  "auto-apply": true,
+                  "refresh": true,
+                  "replace-addrs": ["module.jmusicbot.azurerm_virtual_machine_extension.run_jdiscordbot"]
+                },
+                "relationships": {
+                  "workspace": {
+                    "data": {
+                      "type": "workspaces",
+                      "id": "${{ steps.workspace.outputs.id }}"
+                    }
+                  }
+                }
+              }
+            }' \
+            https://app.terraform.io/api/v2/runs)
+          
+          HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          if [ "$HTTP_STATUS" -eq 201 ]; then
+            echo "Terraform apply triggered successfully."
+            RUN_ID=$(echo "$BODY" | jq -r '.data.id')
+            echo "::set-output name=run_id::$RUN_ID"
+          else
+            echo "Failed to trigger Terraform apply. HTTP status: $HTTP_STATUS"
+            echo "Error message: $(echo "$BODY" | jq -r '.errors[0].title')"
             exit 1
           fi
+
+      - name: Monitor Terraform Apply Status
+        run: |
+          echo "Monitoring Terraform Apply status..."
+          while true; do
+            STATUS=$(curl \
+              --header "Authorization: Bearer ${{ secrets.TF_API_TOKEN }}" \
+              --header "Content-Type: application/vnd.api+json" \
+              https://app.terraform.io/api/v2/runs/${{ steps.apply.outputs.run_id }} \
+              | jq -r '.data.attributes.status')
+            
+            echo "Current status: $STATUS"
+            
+            if [ "$STATUS" = "applied" ]; then
+              echo "SUCCESS: Terraform apply completed successfully."
+              break
+            elif [ "$STATUS" = "errored" ] || [ "$STATUS" = "canceled" ] || [ "$STATUS" = "discarded" ]; then
+              echo "ERROR: Terraform apply failed with status: $STATUS"
+              exit 1
+            fi
+            
+            sleep 30
+          done
 
       - name: Restore Initial VM Power State
         if: steps.check_initial_state.outputs.initial_state != 'VM running'
