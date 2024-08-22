@@ -1,5 +1,4 @@
 name: Trigger Terraform Apply
-
 on:
   repository_dispatch:
     types: [module-updated]
