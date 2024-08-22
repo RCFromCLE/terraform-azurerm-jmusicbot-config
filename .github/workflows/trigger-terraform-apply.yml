@@ -32,7 +32,6 @@ jobs:
             echo "latest_version=$module_latest_release" >> $GITHUB_OUTPUT
           else
             echo "new_release=false" >> $GITHUB_OUTPUT
-            echo "No new release found. Exiting workflow."
           fi
 
       - name: Update main.tf
@@ -57,7 +56,7 @@ jobs:
           echo "jar_latest_release=$jar_latest_release" >> $GITHUB_OUTPUT
 
       - name: Update variables.tf
-        if: steps.check_jar.outputs.new_jar_path != 'false'
+        if: steps.check_jar.outputs.new_jar_path != 'JMusicBot-.jar'
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
@@ -65,12 +64,6 @@ jobs:
           git add variables.tf
           git commit -m "Update jar_path in variables.tf to ${{ steps.check_jar.outputs.new_jar_path }}" || echo "No changes to commit."
           git push https://RCFromCLE:${{ secrets.PAT_TOKEN }}@github.com/RCFromCLE/terraform-azurerm-jmusicbot-config.git || echo "No changes to push."
-
-      - name: Exit if no new release found (scheduled run)
-        if: steps.check_release.outputs.new_release == 'false' && github.event_name == 'schedule'
-        run: |
-          echo "No new release found. Exiting workflow."
-          exit 0
 
       - name: Azure Login
         uses: azure/login@v1
@@ -113,8 +106,12 @@ jobs:
       - name: Initialize Terraform
         run: terraform init
 
+      - name: Import JDiscord Extension
+        run: |
+          terraform import module.jmusicbot.azurerm_virtual_machine_extension.run_jdiscordbot \
+          /subscriptions/3a733158-f6dc-40c4-a314-3a4809a0d159/resourceGroups/jdiscordbot-rg/providers/Microsoft.Compute/virtualMachines/jdb-vm/extensions/run_jdiscordbot
+
       - name: Get Workspace ID
-        if: steps.check_release.outputs.new_release == 'true'
         id: workspace
         run: |
           echo "Getting Terraform Cloud Workspace ID..."
@@ -127,7 +124,6 @@ jobs:
           echo "id=$WORKSPACE_ID" >> $GITHUB_OUTPUT
 
       - name: Trigger Terraform Apply
-        if: steps.check_release.outputs.new_release == 'true'
         id: apply
         run: |
           echo "Triggering Terraform Apply..."
@@ -140,7 +136,7 @@ jobs:
                 "type": "runs",
                 "attributes": {
                   "is-destroy": false,
-                  "message": "New JMusicBot version detected - '${{ steps.check_jar.outputs.jar_latest_release }}'",
+                  "message": "Updating JMusicBot and module version",
                   "auto-apply": true,
                   "refresh": true,
                   "replace-addrs": ["module.jmusicbot.azurerm_virtual_machine_extension.run_jdiscordbot"]
@@ -171,7 +167,6 @@ jobs:
           fi
 
       - name: Monitor Terraform Apply Status
-        if: steps.check_release.outputs.new_release == 'true'
         run: |
           echo "Monitoring Terraform Apply status..."
           while true; do
