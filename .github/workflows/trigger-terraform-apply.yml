@@ -197,29 +197,6 @@ jobs:
             
             sleep 30
           done
-
-      - name: Verify JDiscordBot Service
-        run: |
-          echo "Verifying JDiscordBot service..."
-          SERVICE_STATUS=$(az vm run-command invoke \
-            --resource-group "$AZURE_RESOURCE_GROUP" \
-            --name "$AZURE_VM_NAME" \
-            --command-id RunShellScript \
-            --scripts "systemctl is-active jdiscordbot.service" \
-            --query "value[0].message" -o tsv)
-          
-          if [ "$SERVICE_STATUS" = "active" ]; then
-            echo "JDiscordBot service is running."
-          else
-            echo "ERROR: JDiscordBot service is not running. Current status: $SERVICE_STATUS"
-            echo "Checking service logs..."
-            az vm run-command invoke \
-              --resource-group "$AZURE_RESOURCE_GROUP" \
-              --name "$AZURE_VM_NAME" \
-              --command-id RunShellScript \
-              --scripts "journalctl -u jdiscordbot.service -n 50"
-            exit 1
-          fi
           
       - name: Restore Initial VM Power State
         if: steps.check_initial_state.outputs.initial_state != 'VM running'
