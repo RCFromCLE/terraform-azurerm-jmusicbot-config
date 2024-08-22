@@ -51,25 +51,40 @@ jobs:
         run: |
           jar_latest_release=$(curl -s https://api.github.com/repos/jagrosh/MusicBot/releases/latest | jq -r .tag_name)
           echo "Latest JMusicBot jar release: $jar_latest_release"
-          new_jar_path="JMusicBot-${jar_latest_release}.jar"
-          echo "new_jar_path=$new_jar_path" >> $GITHUB_OUTPUT
           echo "jar_latest_release=$jar_latest_release" >> $GITHUB_OUTPUT
-
-      - name: Update variables.tf
-        if: steps.check_jar.outputs.new_jar_path != 'JMusicBot-.jar'
-        env:
-          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
-        run: |
-          sed -i 's/default\s*=\s*"JMusicBot-.*\.jar"/default = "'${{ steps.check_jar.outputs.new_jar_path }}'"/' variables.tf
-          sed -i 's/jar_version\s*=\s*".*"/jar_version = "${{ steps.check_jar.outputs.jar_latest_release }}"/' terraform.tfvars
-          git add variables.tf terraform.tfvars
-          git commit -m "Update jar_path in variables.tf and jar_version in terraform.tfvars to ${{ steps.check_jar.outputs.new_jar_path }}" || echo "No changes to commit."
-          git push https://RCFromCLE:${{ secrets.PAT_TOKEN }}@github.com/RCFromCLE/terraform-azurerm-jmusicbot-config.git || echo "No changes to push."
 
       - name: Azure Login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Check Initial VM Power State
+        id: check_initial_state
+        run: |
+          echo "Checking initial VM power state..."
+          VM_STATE=$(az vm get-instance-view \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_VM_NAME" \
+            --query instanceView.statuses[1].displayStatus \
+            -o tsv)
+          echo "Initial VM Power State: $VM_STATE"
+          echo "initial_state=$VM_STATE" >> $GITHUB_OUTPUT
+
+          if [ "$VM_STATE" != "VM running" ]; then
+            echo "Starting VM..."
+            az vm start --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_VM_NAME"
+            echo "Waiting for VM to be in running state..."
+            while [ "$VM_STATE" != "VM running" ]; do
+              sleep 30
+              VM_STATE=$(az vm get-instance-view \
+                --resource-group "$AZURE_RESOURCE_GROUP" \
+                --name "$AZURE_VM_NAME" \
+                --query instanceView.statuses[1].displayStatus \
+                -o tsv)
+              echo "Current VM state: $VM_STATE"
+            done
+            echo "VM is now running."
+          fi
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -102,6 +117,30 @@ jobs:
           # Debug output
           echo "Retrieved variables:"
           cat $GITHUB_ENV
+
+      - name: Import JDiscord Extension
+        run: |
+          if [ -z "$SUBSCRIPTION_ID" ]; then
+            echo "Error: Subscription ID is not set. Please ensure it's defined in your Terraform Cloud workspace."
+            exit 1
+          fi
+          
+          echo "Subscription ID: $SUBSCRIPTION_ID"
+          echo "Resource Group: $AZURE_RESOURCE_GROUP"
+          echo "VM Name: $AZURE_VM_NAME"
+          
+          terraform import \
+          -var="azure_tenant_id=${TF_VAR_azure_tenant_id}" \
+          -var="sub=${SUBSCRIPTION_ID}" \
+          -var="discord_bot_token=${TF_VAR_discord_bot_token}" \
+          -var="azure_client_id=${TF_VAR_azure_client_id}" \
+          -var="azure_client_secret=${TF_VAR_azure_client_secret}" \
+          -var="general_channel_id=${TF_VAR_general_channel_id}" \
+          -var="afk_channel_id=${TF_VAR_afk_channel_id}" \
+          -var="music_channel_id=${TF_VAR_music_channel_id}" \
+          -var="discord_bot_owner=${TF_VAR_discord_bot_owner}" \
+          module.jmusicbot.azurerm_virtual_machine_extension.run_jdiscordbot \
+          "/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${AZURE_RESOURCE_GROUP}/providers/Microsoft.Compute/virtualMachines/${AZURE_VM_NAME}/extensions/run_jdiscordbot"
 
       - name: Terraform Plan
         id: plan
