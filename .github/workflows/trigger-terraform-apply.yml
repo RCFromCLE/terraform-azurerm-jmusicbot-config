@@ -120,11 +120,15 @@ jobs:
             --header "Content-Type: application/vnd.api+json" \
             https://app.terraform.io/api/v2/workspaces/${WORKSPACE_ID}/vars)
 
-          echo "$VARS" | jq -r '.data[] | "TF_VAR_" + .attributes.key + "=" + .attributes.value' >> $GITHUB_ENV
+          echo "$VARS" | jq -r '.data[] | select(.attributes.category == "terraform") | "TF_VAR_" + .attributes.key + "=" + .attributes.value' >> $GITHUB_ENV
 
           # Extract subscription ID and set it as an environment variable
           SUBSCRIPTION_ID=$(echo "$VARS" | jq -r '.data[] | select(.attributes.key == "sub") | .attributes.value')
           echo "SUBSCRIPTION_ID=${SUBSCRIPTION_ID}" >> $GITHUB_ENV
+
+          # Debug output
+          echo "Retrieved variables:"
+          cat $GITHUB_ENV
 
       - name: Import JDiscord Extension
         run: |
@@ -133,9 +137,13 @@ jobs:
             exit 1
           fi
           
+          echo "Subscription ID: $SUBSCRIPTION_ID"
+          echo "Resource Group: $AZURE_RESOURCE_GROUP"
+          echo "VM Name: $AZURE_VM_NAME"
+          
           terraform import \
           -var="azure_tenant_id=${TF_VAR_azure_tenant_id}" \
-          -var="sub=${TF_VAR_sub}" \
+          -var="sub=${SUBSCRIPTION_ID}" \
           -var="discord_bot_token=${TF_VAR_discord_bot_token}" \
           -var="azure_client_id=${TF_VAR_azure_client_id}" \
           -var="azure_client_secret=${TF_VAR_azure_client_secret}" \
