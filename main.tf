@@ -17,7 +17,7 @@ terraform {
     }
   }
 }
-################################### provider block ####################################
+#################################### provider block ####################################
 provider "azurerm" {
   features {}
   subscription_id = var.sub
