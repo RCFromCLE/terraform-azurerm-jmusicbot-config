@@ -1,4 +1,5 @@
 name: Trigger Terraform Apply
+
 on:
   repository_dispatch:
     types: [module-updated]
@@ -29,7 +30,7 @@ jobs:
             --query instanceView.statuses[1].displayStatus \
             -o tsv)
           echo "Initial VM Power State: $VM_STATE"
-          echo "::set-output name=initial_state::$VM_STATE"
+          echo "initial_state=$VM_STATE" >> $GITHUB_OUTPUT
           
           if [ "$VM_STATE" != "VM running" ]; then
             echo "Starting VM..."
@@ -57,7 +58,7 @@ jobs:
             https://app.terraform.io/api/v2/organizations/${TF_CLOUD_ORGANIZATION}/workspaces/${TF_WORKSPACE_NAME} \
             | jq -r '.data.id')
           echo "Workspace ID: $WORKSPACE_ID"
-          echo "::set-output name=id::$WORKSPACE_ID"
+          echo "id=$WORKSPACE_ID" >> $GITHUB_OUTPUT
 
       - name: Trigger Terraform Apply
         id: apply
@@ -95,7 +96,7 @@ jobs:
           if [ "$HTTP_STATUS" -eq 201 ]; then
             echo "Terraform apply triggered successfully."
             RUN_ID=$(echo "$BODY" | jq -r '.data.id')
-            echo "::set-output name=run_id::$RUN_ID"
+            echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
           else
             echo "Failed to trigger Terraform apply. HTTP status: $HTTP_STATUS"
             echo "Error message: $(echo "$BODY" | jq -r '.errors[0].title')"
