@@ -25,7 +25,7 @@ provider "azurerm" {
 #################################### module block ###################################
 module "jmusicbot" {
   source  = "RCFromCLE/jmusicbot/azure"
-  version = "v2.0.4"
+  version = "v2.0.5"
 
   # required variables
   azure_tenant_id     = var.azure_tenant_id
