@@ -22,7 +22,7 @@ provider "azurerm" {
   features {}
   subscription_id = var.sub
 }
-#################################### module block ###################################
+#################################### module block ####################################
 module "jmusicbot" {
   source  = "RCFromCLE/jmusicbot/azure"
   version = "v2.2.1"
